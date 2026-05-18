@@ -365,6 +365,21 @@
   height: 16px;
 }
 
+.toggleLink {
+  background: none;
+  border: none;
+  color: #111827;
+  text-decoration: underline;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+
+.toggleLink:hover {
+  color: #f97316;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .mainContent {

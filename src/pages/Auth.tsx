@@ -2,10 +2,13 @@ import { useState } from 'react';
 import { supabase } from '../services/supabase';
 import styles from './Login.module.css';
 
-export function Login() {
+export function Auth() {
+  const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +27,6 @@ export function Login() {
       if (signInError) {
         setError(signInError.message);
       } else {
-        // Handle successful login - redirect to dashboard
         window.location.href = '/dashboard';
       }
     } catch (err) {
@@ -35,7 +37,37 @@ export function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+      } else {
+        window.location.href = '/dashboard';
+      }
+    } catch (err) {
+      setError('An error occurred during signup');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -48,9 +80,20 @@ export function Login() {
         setError(error.message);
       }
     } catch (err) {
-      setError('Failed to sign in with Google');
+      setError(`Failed to ${isSignup ? 'sign up' : 'sign in'} with Google`);
       console.error(err);
     }
+  };
+
+  const toggleMode = () => {
+    setIsSignup(!isSignup);
+    setError('');
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setRememberMe(false);
   };
 
   return (
@@ -59,8 +102,8 @@ export function Login() {
       <nav className={styles.navbar}>
         <div></div>
         <div className={styles.navRight}>
-          <a href="/signup" className={styles.signUpBtn}>Sign Up</a>
-          <a href="/login" className={styles.loginBtn}>Login</a>
+          <button onClick={() => setIsSignup(true)} className={styles.signUpBtn}>Sign Up</button>
+          <button onClick={() => setIsSignup(false)} className={styles.loginBtn}>Login</button>
         </div>
       </nav>
 
@@ -107,17 +150,19 @@ export function Login() {
           </div>
         </div>
 
-        {/* Right Section - Login Form */}
+        {/* Right Section - Auth Form */}
         <div className={styles.rightSection}>
           <div className={styles.formContainer}>
             <div className={styles.formHeader}>
-              <h2 className={styles.formTitle}>Login</h2>
+              <h2 className={styles.formTitle}>{isSignup ? 'Sign Up' : 'Login'}</h2>
               <p className={styles.formSubtitle}>
-                Welcome back! Please log in to access your account.
+                {isSignup
+                  ? 'Create an account to get started with peer tutoring.'
+                  : 'Welcome back! Please log in to access your account.'}
               </p>
             </div>
 
-            <form onSubmit={handleLogin} className={styles.form}>
+            <form onSubmit={isSignup ? handleSignup : handleLogin} className={styles.form}>
               {error && (
                 <div className={styles.errorAlert}>
                   {error}
@@ -168,26 +213,67 @@ export function Login() {
                 </div>
               </div>
 
-              {/* Forgot Password & Remember Me */}
-              <div className={styles.formFooter}>
-                <label className={styles.checkbox}>
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                  />
-                  <span>Remember Me</span>
-                </label>
-                <a href="#" className={styles.forgotLink}>Forgot Password?</a>
-              </div>
+              {/* Confirm Password Field - Only show for signup */}
+              {isSignup && (
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Confirm Password</label>
+                  <div className={styles.passwordWrapper}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm your Password"
+                      className={styles.input}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className={styles.togglePassword}
+                    >
+                      {showConfirmPassword ? (
+                        <svg className={styles.eyeIcon} fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg className={styles.eyeIcon} fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-14-14zM10 4a7 7 0 016.642 11.135l-1.414-1.414A5 5 0 109 6.414l1.414-1.414A6.968 6.968 0 0010 4zm2.5 7a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
-              {/* Login Button */}
+              {/* Forgot Password & Remember Me - Only show for login */}
+              {!isSignup && (
+                <div className={styles.formFooter}>
+                  <label className={styles.checkbox}>
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                    />
+                    <span>Remember Me</span>
+                  </label>
+                  <a href="#" className={styles.forgotLink}>Forgot Password?</a>
+                </div>
+              )}
+
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
                 className={styles.submitBtn}
               >
-                {loading ? 'Logging in...' : 'Login'}
+                {loading
+                  ? isSignup
+                    ? 'Creating account...'
+                    : 'Logging in...'
+                  : isSignup
+                    ? 'Sign Up'
+                    : 'Login'}
               </button>
             </form>
 
@@ -198,9 +284,9 @@ export function Login() {
               <div className={styles.dividerLine}></div>
             </div>
 
-            {/* Google Login */}
+            {/* Google Auth */}
             <button
-              onClick={handleGoogleLogin}
+              onClick={handleGoogleAuth}
               className={styles.googleBtn}
             >
               <svg className={styles.googleIcon} viewBox="0 0 24 24">
@@ -209,18 +295,15 @@ export function Login() {
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
               </svg>
-              Login with Google
+              {isSignup ? 'Sign Up with Google' : 'Login with Google'}
             </button>
 
-            {/* Sign Up Link */}
+            {/* Toggle Link */}
             <p className={styles.signUpLink}>
-              Don&apos;t have an account?{' '}
-              <a href="/signup" className={styles.signUpAnchor}>
-                Sign Up
-                <svg className={styles.arrowIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </a>
+              {isSignup ? "Already have an account? " : "Don't have an account? "}
+              <button onClick={toggleMode} className={styles.toggleLink}>
+                {isSignup ? 'Login' : 'Sign Up'}
+              </button>
             </p>
           </div>
         </div>
