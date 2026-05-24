@@ -1,0 +1,274 @@
+/* Rating Page Styles */
+
+.rating-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding: 40px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.rating-container {
+  background-color: white;
+  border-radius: 12px;
+  padding: 50px 40px;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Headings */
+.rating-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a1a;
+  text-align: center;
+  margin: 0 0 10px 0;
+}
+
+.rating-subtitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  margin: 0 0 40px 0;
+}
+
+/* Tutor Section */
+.tutor-section {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 40px;
+  align-items: flex-start;
+}
+
+.tutor-avatar {
+  flex-shrink: 0;
+}
+
+.tutor-avatar img {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.tutor-info {
+  flex: 1;
+}
+
+.tutor-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+}
+
+.tutor-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-primary {
+  background-color: #ffa500;
+  color: white;
+}
+
+.badge-secondary {
+  background-color: #999;
+  color: white;
+}
+
+/* Form Styles */
+.rating-form {
+  width: 100%;
+}
+
+.rating-section,
+.feedback-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 16px 0;
+}
+
+/* Star Rating */
+.star-rating {
+  background-color: #fff3d9;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.star {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #ddd;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s ease;
+  line-height: 1;
+}
+
+.star:hover {
+  color: #ffa500;
+}
+
+.star.active {
+  color: #ffa500;
+}
+
+.rating-display {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-left: 12px;
+}
+
+/* Feedback Textarea */
+.feedback-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  max-height: 200px;
+  transition: border-color 0.2s ease;
+}
+
+.feedback-textarea:focus {
+  outline: none;
+  border-color: #ffa500;
+  box-shadow: 0 0 0 3px rgba(255, 165, 0, 0.1);
+}
+
+.feedback-textarea::placeholder {
+  color: #999;
+}
+
+/* Alerts */
+.alert {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.alert p {
+  margin: 0;
+}
+
+.alert-error {
+  background-color: #fee;
+  color: #c33;
+  border: 1px solid #fcc;
+}
+
+.alert-success {
+  background-color: #efe;
+  color: #3c3;
+  border: 1px solid #cfc;
+}
+
+.alert-info {
+  background-color: #eef;
+  color: #33c;
+  border: 1px solid #ccf;
+}
+
+/* Submit Button */
+.submit-button {
+  width: 100%;
+  padding: 14px 20px;
+  background-color: #ffa500;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 20px;
+}
+
+.submit-button:hover:not(:disabled) {
+  background-color: #ff9500;
+}
+
+.submit-button:active:not(:disabled) {
+  background-color: #e69500;
+}
+
+.submit-button:disabled {
+  background-color: #ddd;
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* Loading State */
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 16px;
+  color: #666;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .rating-container {
+    padding: 30px 20px;
+  }
+
+  .rating-title {
+    font-size: 24px;
+  }
+
+  .rating-subtitle {
+    font-size: 18px;
+  }
+
+  .tutor-section {
+    gap: 16px;
+  }
+
+  .tutor-avatar img {
+    width: 80px;
+    height: 80px;
+  }
+
+  .tutor-name {
+    font-size: 18px;
+  }
+
+  .star {
+    font-size: 28px;
+  }
+
+  .rating-display {
+    font-size: 18px;
+  }
+}
