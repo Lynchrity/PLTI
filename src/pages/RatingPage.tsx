@@ -70,6 +70,14 @@ export default function RatingPage({ scheduleId, reviewerId }: RatingPageProps) 
     setSubmitting(true)
     setError(null)
 
+    console.log('[v0] Submitting review with data:', {
+      schedule_id: scheduleId,
+      reviewer_id: reviewerId,
+      reviewee_id: tutorInfo.user_id,
+      rating: rating,
+      comment: feedback.trim() || undefined
+    })
+
     const success = await submitReview({
       schedule_id: scheduleId,
       reviewer_id: reviewerId,
@@ -77,6 +85,8 @@ export default function RatingPage({ scheduleId, reviewerId }: RatingPageProps) 
       rating: rating,
       comment: feedback.trim() || undefined
     })
+
+    console.log('[v0] Submit result:', success)
 
     setSubmitting(false)
 
