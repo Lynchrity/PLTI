@@ -94,8 +94,15 @@ export async function submitReview(reviewData: ReviewData): Promise<boolean> {
       throw new Error('Rating must be between 1 and 5')
     }
 
-    // Attempt to insert the review
-    await supabase
+    console.log('[v0] Inserting new review:', {
+      schedule_id: reviewData.schedule_id,
+      rating: reviewData.rating,
+      reviewer_id: reviewData.reviewer_id,
+      reviewee_id: reviewData.reviewee_id,
+      has_comment: !!reviewData.comment?.trim()
+    })
+
+    const { data, error } = await supabase
       .from('reviews')
       .insert([
         {
@@ -106,12 +113,24 @@ export async function submitReview(reviewData: ReviewData): Promise<boolean> {
           comment: reviewData.comment && reviewData.comment.trim() ? reviewData.comment.trim() : null
         }
       ])
+      .select()
 
-    // Data is submitted to Supabase
+    console.log('[v0] Supabase response:', { hasData: !!data, error: error?.message })
+
+    if (error) {
+      console.error('[v0] Insert failed:', {
+        code: (error as any).code,
+        message: error.message,
+        details: (error as any).details
+      })
+      return false
+    }
+
+    console.log('[v0] Review inserted successfully')
     return true
   } catch (error) {
-    // Still return true - Supabase likely received the data
-    return true
+    console.error('[v0] Exception during insert:', error instanceof Error ? error.message : String(error))
+    return false
   }
 }
 
