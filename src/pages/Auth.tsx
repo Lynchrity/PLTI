@@ -15,6 +15,7 @@ export function Auth() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [name, setName] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,32 +42,30 @@ export function Auth() {
   };
 
   const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
+    if (signUpError) {
+      setError(signUpError.message);
+    } else if (data.user) {
 
-    setLoading(true);
+      const { error: dbError } = await supabase
+        .from('users')
+        .insert({
+          user_id: data.user.id,
+          name,
+          email: data.user.email,
+          wallet_balance: 0,
+        });
 
-    try {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (signUpError) {
-        setError(signUpError.message);
-      } else {
-        window.location.href = '/dashboard';
+      if (dbError) {
+        setError(dbError.message);
+        return;
       }
-    } catch (err) {
-      setError('An error occurred during signup');
-      console.error(err);
-    } finally {
-      setLoading(false);
+
+      window.location.href = '/dashboard';
     }
   };
 
@@ -90,6 +89,7 @@ export function Auth() {
 
   const toggleMode = () => {
     setIsSignup(!isSignup);
+    setName('');
     setError('');
     setEmail('');
     setPassword('');
@@ -171,7 +171,19 @@ export function Auth() {
                   {error}
                 </div>
               )}
-
+              {isSignup && (
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>Name</label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your Name"
+                    className={styles.input}
+                    required
+                  />
+                </div>
+              )}
               {/* Email Field */}
               <div className={styles.formGroup}>
                 <label className={styles.label}>Email</label>
