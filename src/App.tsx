@@ -6,7 +6,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/rating" element={<RatingPage scheduleId="test-schedule-123" reviewerId="user-123" />} />
+        <Route path="/rating" element={<RatingPage scheduleId="eeee1111-eeee-eeee-eeee-eeeeeeeeeeee" reviewerId="33333333-3333-3333-3333-333333333333" />} />
         <Route path="/" element={
           <div>
             <h1>Study Buddy Finder</h1>
