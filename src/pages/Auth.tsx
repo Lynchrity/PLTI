@@ -42,6 +42,18 @@ export function Auth() {
   };
 
   const handleSignup = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  setError('');
+  setLoading(true);
+
+  if (password !== confirmPassword) {
+    setError('Passwords do not match');
+    setLoading(false);
+    return;
+  }
+
+  try {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -49,8 +61,10 @@ export function Auth() {
 
     if (signUpError) {
       setError(signUpError.message);
-    } else if (data.user) {
+      return;
+    }
 
+    if (data.user) {
       const { error: dbError } = await supabase
         .from('users')
         .insert({
@@ -67,7 +81,13 @@ export function Auth() {
 
       window.location.href = '/dashboard';
     }
-  };
+  } catch (err) {
+    setError('An error occurred during signup');
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleGoogleAuth = async () => {
     try {
