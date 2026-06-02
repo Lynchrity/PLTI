@@ -1,11 +1,18 @@
-import { useState } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Auth } from './pages/Auth';
+import { StudentDashboardPage, TutorDashboardPage } from './pages/Dashboard';
 
 function App() {
   return (
-    <div>
-      <h1>Study Buddy Finder</h1>
-    </div>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Auth />} />
+        <Route path="/" element={<Auth />} />
+        <Route path="/dashboard" element={<StudentDashboardPage />} />
+        <Route path="/dashboard/tutor" element={<TutorDashboardPage />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
