@@ -1,0 +1,34 @@
+:root,
+[data-theme='student'] {
+  --color-primary: #f97316;
+  --color-primary-hover: #ea580c;
+  --color-primary-light: #fff7ed;
+  --color-accent: #f97316;
+  --color-nav-active: #f97316;
+  --color-card-header: #dbeafe;
+  --color-bg: #ffffff;
+  --color-bg-muted: #f9fafb;
+  --color-surface: #ffffff;
+  --color-border: #e5e7eb;
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-btn-text: #ffffff;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='tutor'] {
+  --color-primary: #1e3a5f;
+  --color-primary-hover: #152a45;
+  --color-primary-light: #e8eef5;
+  --color-accent: #0ea5e9;
+  --color-nav-active: #0ea5e9;
+  --color-card-header: #1e3a5f;
+  --color-bg: #f6f8fb;
+  --color-bg-muted: #eef2f7;
+  --color-surface: #ffffff;
+  --color-border: #cbd5e1;
+  --color-text: #0f172a;
+  --color-text-muted: #475569;
+  --color-btn-text: #ffffff;
+  --shadow-card: 0 2px 8px rgba(30, 58, 95, 0.1);
+}

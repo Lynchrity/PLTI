@@ -355,6 +355,37 @@
   height: 16px;
 }
 
+.roleToggle {
+  display: flex;
+  gap: 8px;
+}
+
+.roleBtn,
+.roleActive {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.roleActive {
+  border-color: #f97316;
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  resize: vertical;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .mainContent {
