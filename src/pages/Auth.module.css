@@ -4,6 +4,17 @@
   display: flex;
   flex-direction: column;
   background-color: #f9fafb;
+  --auth-accent: #f97316;
+  --auth-accent-hover: #ea580c;
+  --auth-accent-light: #fff7ed;
+  --auth-accent-soft: #fed7aa;
+}
+
+.container[data-auth-role='tutor'] {
+  --auth-accent: #1e3a5f;
+  --auth-accent-hover: #152a45;
+  --auth-accent-light: #e8eef5;
+  --auth-accent-soft: #cbd5e1;
 }
 
 /* Navigation Bar */
@@ -37,7 +48,7 @@
 }
 
 .loginBtn {
-  background-color: #f97316;
+  background-color: var(--auth-accent);
   color: white;
   border: none;
   padding: 8px 24px;
@@ -45,11 +56,11 @@
   font-weight: 500;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.35s ease, color 0.35s ease;
 }
 
 .loginBtn:hover {
-  background-color: #ea580c;
+  background-color: var(--auth-accent-hover);
 }
 
 /* Main Content */
@@ -186,7 +197,7 @@
   background-color: #f9fafb;
   font-size: 14px;
   color: #1f2937;
-  transition: all 0.2s;
+  transition: border-color 0.35s ease, background-color 0.2s ease, box-shadow 0.35s ease;
 }
 
 .input::placeholder {
@@ -195,10 +206,9 @@
 
 .input:focus {
   outline: none;
-  ring: 2px;
-  ring-color: #f97316;
   background-color: white;
-  border-color: #f97316;
+  border-color: var(--auth-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--auth-accent) 18%, transparent);
 }
 
 .passwordWrapper {
@@ -247,7 +257,8 @@
   border-radius: 4px;
   border: 1px solid #d1d5db;
   cursor: pointer;
-  accent-color: #f97316;
+  accent-color: var(--auth-accent);
+  transition: accent-color 0.35s ease;
 }
 
 .forgotLink {
@@ -263,22 +274,22 @@
 .submitBtn {
   width: 100%;
   padding: 12px 16px;
-  background-color: #f97316;
+  background-color: var(--auth-accent);
   color: white;
   border: none;
   border-radius: 6px;
   font-weight: 500;
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.35s ease, opacity 0.2s ease;
 }
 
 .submitBtn:hover {
-  background-color: #ea580c;
+  background-color: var(--auth-accent-hover);
 }
 
 .submitBtn:disabled {
-  background-color: #fed7aa;
+  background-color: var(--auth-accent-soft);
   cursor: not-allowed;
 }
 
@@ -347,12 +358,71 @@
 }
 
 .signUpAnchor:hover {
-  color: #f97316;
+  color: var(--auth-accent);
+}
+
+.toggleLink {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #111827;
+  text-decoration: underline;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.35s ease;
+}
+
+.toggleLink:hover {
+  color: var(--auth-accent);
 }
 
 .arrowIcon {
   width: 16px;
   height: 16px;
+}
+
+.roleToggle {
+  display: flex;
+  gap: 8px;
+}
+
+.roleBtn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: white;
+  cursor: pointer;
+  font-weight: 600;
+  color: #374151;
+  transition:
+    border-color 0.35s ease,
+    background-color 0.35s ease,
+    color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.roleActive {
+  border-color: var(--auth-accent);
+  background: var(--auth-accent-light);
+  color: var(--auth-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--auth-accent) 25%, transparent);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  resize: vertical;
+  transition: border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--auth-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--auth-accent) 18%, transparent);
 }
 
 /* Responsive Design */

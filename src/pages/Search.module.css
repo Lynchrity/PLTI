@@ -1,0 +1,36 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.searchBar {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.filterSelect {
+  min-width: 140px;
+}
+
+.resultsCount {
+  color: var(--color-text-muted);
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.bookingPanel {
+  margin-top: 24px;
+  padding: 20px;
+  border: 2px solid var(--color-primary);
+  border-radius: 10px;
+  background: var(--color-primary-light);
+}

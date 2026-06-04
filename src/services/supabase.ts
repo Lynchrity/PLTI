@@ -7,7 +7,7 @@ const supabaseKey =
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error(
-    'Missing Supabase environment variables. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to .env.',
+    'Missing Supabase environment variables. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env.',
   );
 }
 

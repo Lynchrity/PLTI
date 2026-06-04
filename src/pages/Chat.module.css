@@ -1,0 +1,241 @@
+.chatLayout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 0;
+  min-height: 520px;
+  max-height: calc(100vh - 220px);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.roomList {
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-muted);
+}
+
+.roomListHeader {
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.roomListEmpty {
+  padding: 20px 16px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.roomItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.roomItem:hover,
+.roomActive {
+  background: var(--color-primary-light);
+}
+
+.roomAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-btn-text);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.roomMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.roomTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.roomName {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.roomTime {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.roomPreview {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin-top: 4px;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chatPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--color-surface);
+}
+
+.chatHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-card-header, var(--color-bg-muted));
+}
+
+.chatHeaderAvatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-btn-text);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+
+.chatHeaderName {
+  display: block;
+  font-size: 16px;
+}
+
+.chatHeaderSub {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.messages {
+  flex: 1;
+  padding: 20px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.messagesStatus {
+  margin: auto;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.messageRowMine,
+.messageRowTheirs {
+  display: flex;
+}
+
+.messageRowMine {
+  justify-content: flex-end;
+}
+
+.messageRowTheirs {
+  justify-content: flex-start;
+}
+
+.message {
+  max-width: min(75%, 420px);
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+}
+
+.messageMine {
+  background: var(--color-primary);
+  color: var(--color-btn-text);
+  border-bottom-right-radius: 4px;
+}
+
+.messageTheirs {
+  background: var(--color-bg-muted);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-bottom-left-radius: 4px;
+}
+
+.messageText {
+  margin: 0;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.messageTime {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.messageMine .messageTime {
+  text-align: right;
+}
+
+.compose {
+  display: flex;
+  gap: 10px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.compose input {
+  flex: 1;
+}
+
+.chatEmpty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .chatLayout {
+    grid-template-columns: 1fr;
+    max-height: none;
+  }
+
+  .roomList {
+    max-height: 200px;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+}

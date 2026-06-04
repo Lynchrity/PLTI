@@ -1,17 +1,127 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { AppProvider } from './context/AppContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { Auth } from './pages/Auth';
-import { StudentDashboardPage, TutorDashboardPage } from './pages/Dashboard';
+import { Chat } from './pages/Chat';
+import { Dashboard } from './pages/Dashboard';
+import { Earnings } from './pages/Earnings';
+import { History } from './pages/History';
+import { Profile } from './pages/Profile';
+import { Requests } from './pages/Requests';
+import { Search } from './pages/Search';
+import { Services } from './pages/Services';
+import { SessionDetails } from './pages/SessionDetails';
+import { Sessions } from './pages/Sessions';
+import { TutorPending } from './pages/TutorPending';
+import { Wallet } from './pages/Wallet';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Auth />} />
-        <Route path="/" element={<Auth />} />
-        <Route path="/dashboard" element={<StudentDashboardPage />} />
-        <Route path="/dashboard/tutor" element={<TutorDashboardPage />} />
-      </Routes>
-    </BrowserRouter>
+    <AppProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Auth />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/search"
+            element={
+              <ProtectedRoute>
+                <Search />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <Chat />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <History />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wallet"
+            element={
+              <ProtectedRoute>
+                <Wallet />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/earnings"
+            element={
+              <ProtectedRoute>
+                <Earnings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/services"
+            element={
+              <ProtectedRoute>
+                <Services />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/requests"
+            element={
+              <ProtectedRoute>
+                <Requests />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sessions"
+            element={
+              <ProtectedRoute>
+                <Sessions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tutor/pending"
+            element={
+              <ProtectedRoute>
+                <TutorPending />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/admin/applications" element={<Navigate to="/dashboard" replace />} />
+          <Route
+            path="/sessions/:scheduleId"
+            element={
+              <ProtectedRoute>
+                <SessionDetails />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </AppProvider>
   );
 }
 
