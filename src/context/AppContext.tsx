@@ -8,12 +8,17 @@ import {
   type ReactNode,
 } from 'react';
 import { PROFILE_EXTRAS_KEY, ROLE_STORAGE_KEY } from '../constants/navigation';
+import { isAdminUser } from '../services/adminService';
 import { ensureUserProfile } from '../services/authService';
-import type { ProfileExtras, UserProfile, UserRole } from '../types';
+import { supabase } from '../services/supabase';
+import type { ProfileExtras, TutorApplicationStatus, UserProfile, UserRole } from '../types';
+import { getTutorApplication } from '../services/tutorApplicationService';
 
 interface AppContextValue {
   profile: UserProfile | null;
   role: UserRole;
+  isAdmin: boolean;
+  tutorApplicationStatus: TutorApplicationStatus | null;
   loading: boolean;
   error: string;
   profileExtras: ProfileExtras;
@@ -46,6 +51,9 @@ function loadExtras(): ProfileExtras {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [role, setRoleState] = useState<UserRole>(loadRole);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [tutorApplicationStatus, setTutorApplicationStatus] =
+    useState<TutorApplicationStatus | null>(null);
   const [profileExtras, setProfileExtras] = useState<ProfileExtras>(loadExtras);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,10 +61,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const refreshProfile = useCallback(async () => {
     setError('');
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setIsAdmin(isAdminUser(user));
+
       const current = await ensureUserProfile();
       setProfile(current);
+
+      if (current) {
+        const application = await getTutorApplication(current.user_id);
+        setTutorApplicationStatus(application?.status ?? null);
+      } else {
+        setTutorApplicationStatus(null);
+      }
     } catch (err) {
       setProfile(null);
+      setIsAdmin(false);
+      setTutorApplicationStatus(null);
       setError(err instanceof Error ? err.message : 'Unable to load profile.');
     }
   }, []);
@@ -84,6 +106,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       profile,
       role,
+      isAdmin,
+      tutorApplicationStatus,
       loading,
       error,
       profileExtras,
@@ -91,7 +115,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshProfile,
       updateProfileExtras,
     }),
-    [profile, role, loading, error, profileExtras, setRole, refreshProfile, updateProfileExtras],
+    [
+      profile,
+      role,
+      isAdmin,
+      tutorApplicationStatus,
+      loading,
+      error,
+      profileExtras,
+      setRole,
+      refreshProfile,
+      updateProfileExtras,
+    ],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

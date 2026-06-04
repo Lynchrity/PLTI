@@ -1,6 +1,14 @@
 import { ROLE_STORAGE_KEY } from '../constants/navigation';
 import type { UserProfile, UserRole } from '../types';
-import { assertTutorApproved, submitTutorApplication, uploadResume } from './tutorApplicationService';
+import { isAdminUser } from './adminService';
+import {
+  assertResumeBucketReady,
+  deleteTutorApplicationForUser,
+  deleteUploadedResume,
+  getTutorApplication,
+  submitTutorApplication,
+  uploadResume,
+} from './tutorApplicationService';
 import { supabase } from './supabase';
 
 export type { UserProfile };
@@ -112,15 +120,96 @@ export async function login(email: string, password: string, role: UserRole = 's
     throw error;
   }
 
-  const profile = await ensureUserProfile();
+  await ensureUserProfile();
 
-  if (role === 'tutor' && profile) {
-    await assertTutorApproved(profile.user_id);
-  }
-
-  setStoredRole(role);
+  setStoredRole(isAdminUser(data.user) ? 'student' : role);
 
   return data;
+}
+
+function isExistingUserError(message: string): boolean {
+  return /already registered|already exists|user already/i.test(message);
+}
+
+async function obtainTutorSignupSession(
+  email: string,
+  password: string,
+  name: string,
+) {
+  const signUpResult = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name } },
+  });
+
+  if (!signUpResult.error) {
+    return signUpResult.data;
+  }
+
+  if (!isExistingUserError(signUpResult.error.message)) {
+    throw signUpResult.error;
+  }
+
+  const loginResult = await supabase.auth.signInWithPassword({ email, password });
+
+  if (loginResult.error) {
+    throw new Error(
+      'An account with this email already exists in Supabase Auth. Log in instead, or delete that user under Authentication > Users and sign up again.',
+    );
+  }
+
+  if (!loginResult.data.user) {
+    throw new Error('Unable to continue tutor registration for this account.');
+  }
+
+  const existingApplication = await getTutorApplication(loginResult.data.user.id);
+
+  if (existingApplication) {
+    throw new Error(
+      'This account already has a tutor application. Log in as Tutor to check your status.',
+    );
+  }
+
+  return loginResult.data;
+}
+
+async function rollbackTutorSignup(userId: string, resumePath: string | null) {
+  if (resumePath) {
+    await deleteUploadedResume(resumePath);
+  }
+
+  try {
+    await deleteTutorApplicationForUser(userId);
+  } catch {
+    // Row may not exist yet.
+  }
+
+  try {
+    await supabase.from('users').delete().eq('user_id', userId);
+  } catch {
+    // Delete may be blocked by RLS; auth sign-out still runs below.
+  }
+
+  await supabase.auth.signOut();
+}
+
+function formatTutorSignupError(err: unknown): Error {
+  const message = err instanceof Error ? err.message : String(err);
+  const lower = message.toLowerCase();
+
+  if (lower.includes('row-level security') || lower.includes('policy')) {
+    return new Error(
+      `Tutor signup was blocked by Supabase security (RLS). Most often this is the CV upload to the "resumes" storage bucket — run supabase-storage-resumes.sql in the SQL Editor. If the CV step succeeds, ensure insert policies exist on public.users and public.tutor_applications. Original error: ${message}`,
+    );
+  }
+
+  if (lower.includes('foreign key') && lower.includes('users')) {
+    return new Error(
+      'Tutor signup failed because the user profile row is missing. Try again; the app should create public.users before tutor_applications.',
+    );
+  }
+
+  return err instanceof Error ? err : new Error(message);
 }
 
 export async function signUpTutor(input: {
@@ -131,34 +220,43 @@ export async function signUpTutor(input: {
   experienceSummary: string;
   resumeFile: File;
 }) {
-  const { data, error } = await supabase.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: { data: { name: input.name } },
-  });
+  await assertResumeBucketReady();
 
-  if (error) {
-    throw error;
-  }
+  const data = await obtainTutorSignupSession(input.email, input.password, input.name);
 
   if (!data.user) {
     throw new Error('Account could not be created.');
   }
 
-  await ensureUserProfile();
+  if (!data.session) {
+    throw new Error(
+      'Tutor signup needs an active session. Confirm your email or disable email confirmation in Supabase, then try again.',
+    );
+  }
 
-  const resumePath = await uploadResume(data.user.id, input.resumeFile);
+  const userId = data.user.id;
+  let resumePath: string | null = null;
 
-  await submitTutorApplication({
-    userId: data.user.id,
-    resumeFilePath: resumePath,
-    linkedinUrl: input.linkedinUrl,
-    experienceSummary: input.experienceSummary,
-  });
+  try {
+    resumePath = await uploadResume(userId, input.resumeFile);
 
-  setStoredRole('tutor');
+    // users row must exist before tutor_applications (foreign key)
+    await ensureUserProfile();
 
-  return data;
+    await submitTutorApplication({
+      userId,
+      resumeFilePath: resumePath,
+      linkedinUrl: input.linkedinUrl,
+      experienceSummary: input.experienceSummary,
+    });
+
+    setStoredRole('tutor');
+
+    return data;
+  } catch (err) {
+    await rollbackTutorSignup(userId, resumePath);
+    throw formatTutorSignupError(err);
+  }
 }
 
 export async function logout() {

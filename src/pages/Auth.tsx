@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { UserRole } from '../types';
 import { supabase } from '../services/supabase';
 import { login, signUp, signUpTutor } from '../services/authService';
+import { resolvePostLoginPath } from '../services/adminService';
 import styles from './Auth.module.css';
 
 
@@ -41,8 +42,8 @@ export function Auth() {
     setLoading(true);
 
     try {
-      await login(email, password, authRole);
-      window.location.href = '/dashboard';
+      const data = await login(email, password, authRole);
+      window.location.href = await resolvePostLoginPath(data.user, authRole);
     } catch (err) {
       setError(formatAuthError(err instanceof Error ? err.message : 'An error occurred during login'));
       console.error(err);
@@ -90,10 +91,10 @@ export function Auth() {
         : await signUp(email, password, name);
 
     if (data.session) {
-      window.location.href = '/dashboard';
+      window.location.href = await resolvePostLoginPath(data.user, authRole);
     } else if (authRole === 'tutor') {
       setError(
-        'Tutor application submitted. Confirm your email in Supabase, then log in after an admin approves your application.',
+        'Tutor application submitted. Confirm your email in Supabase, then log in as Tutor to check your application status.',
       );
     } else {
       setError('Account created. Confirm the email in Supabase Authentication > Users, then log in.');
@@ -141,7 +142,7 @@ export function Auth() {
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-auth-role={authRole}>
       {/* Navigation Header */}
       <nav className={styles.navbar}>
         <div></div>
@@ -218,14 +219,22 @@ export function Auth() {
                 <div className={styles.roleToggle}>
                   <button
                     type="button"
-                    className={authRole === 'student' ? styles.roleActive : styles.roleBtn}
+                    className={
+                      authRole === 'student'
+                        ? `${styles.roleBtn} ${styles.roleActive}`
+                        : styles.roleBtn
+                    }
                     onClick={() => setAuthRole('student')}
                   >
                     Student
                   </button>
                   <button
                     type="button"
-                    className={authRole === 'tutor' ? styles.roleActive : styles.roleBtn}
+                    className={
+                      authRole === 'tutor'
+                        ? `${styles.roleBtn} ${styles.roleActive}`
+                        : styles.roleBtn
+                    }
                     onClick={() => setAuthRole('tutor')}
                   >
                     Tutor

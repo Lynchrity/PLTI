@@ -23,7 +23,15 @@ export const TUTOR_NAV: NavItem[] = [
   { label: 'Profile', path: '/profile' },
 ];
 
-export function getNavItems(role: UserRole): NavItem[] {
+export const ADMIN_NAV: NavItem[] = [
+  { label: 'Dashboard', path: '/dashboard' },
+  { label: 'History', path: '/history' },
+];
+
+export function getNavItems(role: UserRole, isAdmin = false): NavItem[] {
+  if (isAdmin) {
+    return ADMIN_NAV;
+  }
   return role === 'tutor' ? TUTOR_NAV : STUDENT_NAV;
 }
 

@@ -94,6 +94,15 @@
   align-items: center;
   margin-top: auto;
   padding-top: 8px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .price {

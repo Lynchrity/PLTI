@@ -12,6 +12,7 @@ import { Search } from './pages/Search';
 import { Services } from './pages/Services';
 import { SessionDetails } from './pages/SessionDetails';
 import { Sessions } from './pages/Sessions';
+import { TutorPending } from './pages/TutorPending';
 import { Wallet } from './pages/Wallet';
 
 function App() {
@@ -101,6 +102,15 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/tutor/pending"
+            element={
+              <ProtectedRoute>
+                <TutorPending />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/admin/applications" element={<Navigate to="/dashboard" replace />} />
           <Route
             path="/sessions/:scheduleId"
             element={

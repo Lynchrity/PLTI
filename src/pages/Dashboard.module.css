@@ -1,3 +1,11 @@
+.applicationList {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .dashboard {
   display: grid;
   grid-template-columns: 1fr 1fr;

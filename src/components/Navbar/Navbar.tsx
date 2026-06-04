@@ -5,9 +5,9 @@ import { logout } from '../../services/authService';
 import styles from './Navbar.module.css';
 
 export function Navbar() {
-  const { profile, role } = useApp();
+  const { profile, role, isAdmin } = useApp();
   const location = useLocation();
-  const navItems = getNavItems(role);
+  const navItems = getNavItems(role, isAdmin);
 
   const handleLogout = async () => {
     await logout();

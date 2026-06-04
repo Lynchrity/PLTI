@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AppLayout } from '../components/AppLayout/AppLayout';
 import { useApp } from '../context/AppContext';
-import { getOrCreateChatRoom } from '../services/chatService';
+import { createOrGetChatRoom } from '../services/chatService';
 import { getScheduleWithParties } from '../services/scheduleService';
 import type { ScheduleWithDetails } from '../types';
 import shared from '../styles/shared.module.css';
@@ -10,6 +10,7 @@ import shared from '../styles/shared.module.css';
 export function SessionDetails() {
   const { scheduleId } = useParams<{ scheduleId: string }>();
   const { profile } = useApp();
+  const navigate = useNavigate();
   const [schedule, setSchedule] = useState<ScheduleWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,8 +30,8 @@ export function SessionDetails() {
       schedule.initiator_id === profile.user_id
         ? schedule.participant_id
         : schedule.initiator_id;
-    await getOrCreateChatRoom(profile.user_id, otherId);
-    window.location.href = '/chat';
+    const roomId = await createOrGetChatRoom(profile.user_id, otherId);
+    navigate(`/chat?room=${roomId}`);
   };
 
   return (

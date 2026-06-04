@@ -90,6 +90,7 @@ export interface ChatRoomWithPeer extends ChatRoom {
   peer_id: string;
   peer_name: string;
   last_message?: string;
+  last_message_at?: string | null;
 }
 
 export interface Transaction {

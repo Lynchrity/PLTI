@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { StartChatButton } from '../StartChatButton/StartChatButton';
 import { formatServicePrice } from '../../services/marketplaceService';
 import type { ServiceWithTutor } from '../../types';
 import styles from './ServiceCard.module.css';
@@ -6,9 +7,10 @@ import styles from './ServiceCard.module.css';
 interface ServiceCardProps {
   service: ServiceWithTutor;
   onBook?: (service: ServiceWithTutor) => void;
+  showChat?: boolean;
 }
 
-export function ServiceCard({ service, onBook }: ServiceCardProps) {
+export function ServiceCard({ service, onBook, showChat = false }: ServiceCardProps) {
   const isFree =
     service.type.toLowerCase() === 'peer' || service.price === 0;
   const priceLabel = formatServicePrice(service.type, service.price);
@@ -34,15 +36,24 @@ export function ServiceCard({ service, onBook }: ServiceCardProps) {
         </p>
         <div className={styles.footer}>
           <span className={styles.price}>{priceLabel}</span>
-          {onBook ? (
-            <button type="button" className={styles.bookBtn} onClick={() => onBook(service)}>
-              Book
-            </button>
-          ) : (
-            <Link to={`/search?service=${service.service_id}`} className={styles.bookBtn}>
-              View
-            </Link>
-          )}
+          <div className={styles.actions}>
+            {showChat && (
+              <StartChatButton
+                peerId={service.creator_id}
+                peerName={service.tutor_name}
+                variant="outline"
+              />
+            )}
+            {onBook ? (
+              <button type="button" className={styles.bookBtn} onClick={() => onBook(service)}>
+                Book
+              </button>
+            ) : (
+              <Link to={`/search?service=${service.service_id}`} className={styles.bookBtn}>
+                View
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </article>

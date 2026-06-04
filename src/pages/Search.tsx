@@ -206,7 +206,12 @@ export function Search() {
 
       <div className={styles.grid}>
         {results.map((service) => (
-          <ServiceCard key={service.service_id} service={service} onBook={handleBook} />
+          <ServiceCard
+            key={service.service_id}
+            service={service}
+            onBook={handleBook}
+            showChat
+          />
         ))}
       </div>
 

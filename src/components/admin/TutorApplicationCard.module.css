@@ -1,0 +1,60 @@
+.card {
+  padding: 20px;
+}
+
+.body {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.info {
+  flex: 1;
+  min-width: 220px;
+}
+
+.email {
+  margin-left: 8px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.meta {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.summary {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.resumeLink {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.resumeLink:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.resumeError {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #991b1b;
+}

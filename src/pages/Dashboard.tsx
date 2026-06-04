@@ -1,8 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { TutorApplicationCard } from '../components/admin/TutorApplicationCard';
 import { AppLayout } from '../components/AppLayout/AppLayout';
 import { useApp } from '../context/AppContext';
 import { getUpcomingSchedule, getUserSchedules } from '../services/scheduleService';
+import {
+  listTutorApplications,
+  reviewTutorApplication,
+  type TutorApplicationWithUser,
+} from '../services/tutorApplicationService';
 import type { Schedule, ScheduleWithDetails } from '../types';
 import shared from '../styles/shared.module.css';
 import styles from './Dashboard.module.css';
@@ -179,14 +185,88 @@ function TutorDashboard({
   );
 }
 
+function AdminDashboard() {
+  const [applications, setApplications] = useState<TutorApplicationWithUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await listTutorApplications({ status: 'pending', sortAscending: false });
+      setApplications(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load applications.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleReview = async (
+    applicationId: string,
+    status: 'approved' | 'rejected',
+  ) => {
+    setMessage('');
+    setError('');
+    try {
+      await reviewTutorApplication(applicationId, status);
+      setMessage(`Application ${status}.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update application.');
+    }
+  };
+
+  return (
+    <>
+      <h1 className={shared.pageTitle}>Tutor Applications</h1>
+      <p className={shared.pageSubtitle}>
+        Review pending tutor signups. View past decisions on History.
+      </p>
+
+      {error && <div className={shared.error}>{error}</div>}
+      {message && <p style={{ color: '#16a34a', marginBottom: 16 }}>{message}</p>}
+
+      {loading ? (
+        <p>Loading applications…</p>
+      ) : applications.length === 0 ? (
+        <p className={shared.empty}>No pending applications.</p>
+      ) : (
+        <ul className={styles.applicationList}>
+          {applications.map((app) => (
+            <TutorApplicationCard
+              key={app.application_id}
+              app={app}
+              showActions
+              onApprove={(id) => handleReview(id, 'approved')}
+              onReject={(id) => handleReview(id, 'rejected')}
+            />
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export function Dashboard() {
-  const { profile, role } = useApp();
+  const { profile, role, isAdmin } = useApp();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [upcoming, setUpcoming] = useState<ScheduleWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || isAdmin) {
+      if (isAdmin) {
+        setLoading(false);
+      }
+      return;
+    }
 
     async function load() {
       try {
@@ -203,13 +283,15 @@ export function Dashboard() {
     }
 
     load();
-  }, [profile, role]);
+  }, [profile, role, isAdmin]);
 
   const firstName = profile?.name?.split(' ')[0] ?? 'there';
 
   return (
     <AppLayout>
-      {loading ? (
+      {isAdmin ? (
+        <AdminDashboard />
+      ) : loading ? (
         <p>Loading dashboard…</p>
       ) : role === 'tutor' ? (
         <TutorDashboard
