@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { StartChatButton } from '../StartChatButton/StartChatButton';
 import { formatServicePrice } from '../../services/marketplaceService';
 import type { ServiceWithTutor } from '../../types';
+import { isPeerService } from '../../utils/currency';
 import styles from './ServiceCard.module.css';
 
 interface ServiceCardProps {
@@ -11,17 +12,20 @@ interface ServiceCardProps {
 }
 
 export function ServiceCard({ service, onBook, showChat = false }: ServiceCardProps) {
-  const isFree =
-    service.type.toLowerCase() === 'peer' || service.price === 0;
+  const isFree = isPeerService(service.type, service.price);
   const priceLabel = formatServicePrice(service.type, service.price);
 
   return (
     <article className={styles.card}>
       <div className={styles.thumbnail}>
+        {service.banner_url ? (
+          <img src={service.banner_url} alt="" className={styles.bannerImage} />
+        ) : (
+          <span className={styles.thumbnailText}>
+            {service.subject ?? service.type}
+          </span>
+        )}
         {isFree && <span className={styles.freeBadge}>Free</span>}
-        <span className={styles.thumbnailText}>
-          {service.subject ?? service.type}
-        </span>
       </div>
       <div className={styles.body}>
         <div className={styles.sellerRow}>
@@ -29,6 +33,7 @@ export function ServiceCard({ service, onBook, showChat = false }: ServiceCardPr
           <span>{service.tutor_name}</span>
         </div>
         <h3 className={styles.title}>{service.title}</h3>
+        {service.description && <p className={styles.description}>{service.description}</p>}
         <p className={styles.rating}>
           <strong>★ {service.review_count > 0 ? service.avg_rating.toFixed(1) : 'New'}</strong>
           {service.review_count > 0 && ` (${service.review_count})`}

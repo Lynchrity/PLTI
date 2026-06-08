@@ -1,98 +1,148 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppLayout } from '../components/AppLayout/AppLayout';
 import { useApp } from '../context/AppContext';
+import { GRADE_SELECT_OPTIONS, SUBJECT_SELECT_OPTIONS } from '../constants/filters';
 import {
   createService,
   deleteService,
   getMyServices,
 } from '../services/serviceManagementService';
+import { uploadMediaFile } from '../services/storageService';
 import type { Service } from '../types';
+import { formatIdrInputValue, formatPriceIdrPlain, parseIdrInput, serviceTypeForRole } from '../utils/currency';
+import { getErrorMessage } from '../utils/errors';
 import shared from '../styles/shared.module.css';
 
-const emptyForm = {
-  type: 'tutoring',
+const tutorEmptyForm = {
   title: '',
-  subject: '',
+  subject: SUBJECT_SELECT_OPTIONS[0],
   topic: '',
+  description: '',
+  grade_level: GRADE_SELECT_OPTIONS[0],
+  duration_minutes: 60,
+  price: 45000,
+  priceInput: '45.000,00',
+};
+
+const peerEmptyForm = {
+  title: '',
+  subject: SUBJECT_SELECT_OPTIONS[0],
+  topic: '',
+  description: '',
+  grade_level: GRADE_SELECT_OPTIONS[0],
   duration_minutes: 30,
-  price: 25,
 };
 
 export function Services() {
-  const { profile } = useApp();
+  const { profile, role } = useApp();
+
+  return (
+    <AppLayout>
+      <ManageServices profileId={profile?.user_id} role={role === 'tutor' ? 'tutor' : 'student'} />
+    </AppLayout>
+  );
+}
+
+function ManageServices({
+  profileId,
+  role,
+}: {
+  profileId?: string;
+  role: 'student' | 'tutor';
+}) {
+  const isPeer = role === 'student';
   const [services, setServices] = useState<Service[]>([]);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(isPeer ? peerEmptyForm : tutorEmptyForm);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const bannerRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
-    if (!profile) return;
-    const data = await getMyServices(profile.user_id);
+    if (!profileId) return;
+    const data = await getMyServices(profileId);
     setServices(data);
     setLoading(false);
   };
 
   useEffect(() => {
+    setLoading(true);
     load().catch((err) =>
       setError(err instanceof Error ? err.message : 'Failed to load services.'),
     );
-  }, [profile]);
+  }, [profileId]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
+    if (!profileId) return;
 
     setError('');
+    setSubmitting(true);
     try {
-      const isPeer = form.type === 'peer';
-      await createService(profile.user_id, {
-        type: form.type,
+      let bannerUrl: string | null = null;
+      if (bannerFile) {
+        bannerUrl = await uploadMediaFile(
+          'banners',
+          profileId,
+          bannerFile,
+          `service-${Date.now()}.jpg`,
+        );
+      }
+
+      await createService(profileId, {
+        type: serviceTypeForRole(role),
         title: form.title,
         subject: form.subject,
         topic: form.topic,
+        description: form.description,
+        grade_level: form.grade_level,
+        banner_url: bannerUrl,
         duration_minutes: form.duration_minutes,
-        price: isPeer ? 0 : form.price,
+        price: isPeer ? 0 : parseIdrInput((form as typeof tutorEmptyForm).priceInput),
       });
-      setForm(emptyForm);
+      setForm(isPeer ? peerEmptyForm : tutorEmptyForm);
+      setBannerFile(null);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create service.');
+      setError(getErrorMessage(err, 'Failed to create service.'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (serviceId: string) => {
-    if (!profile) return;
-    await deleteService(serviceId, profile.user_id);
-    await load();
+    if (!profileId) return;
+    if (!window.confirm('Delete this service?')) return;
+
+    setError('');
+    try {
+      await deleteService(serviceId, profileId);
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to delete service.'));
+    }
   };
 
   return (
-    <AppLayout>
-      <h1 className={shared.pageTitle}>My Services</h1>
+    <div className={shared.pageContent}>
+      <h1 className={shared.pageTitle}>{isPeer ? 'My Peer Services' : 'My Tutoring Services'}</h1>
       <p className={shared.pageSubtitle}>
-        Create tutoring or free peer services. Each service defines its own subject, topic, price,
-        and duration.
+        {isPeer
+          ? 'Offer free peer study sessions. Other students can find and book you from Search.'
+          : 'Create paid tutoring offerings. Enter the price in rupiah (e.g. Rp45.000,00 on listings).'}
       </p>
 
       {error && <div className={shared.error}>{error}</div>}
 
       <form
         onSubmit={handleCreate}
-        className={shared.card}
-        style={{ padding: 24, marginBottom: 32, maxWidth: 640 }}
+        className={`${shared.card} ${shared.centeredForm}`}
+        style={{ marginBottom: 32 }}
       >
-        <h2 style={{ margin: '0 0 16px', fontSize: 18 }}>New service</h2>
-        <div className={shared.formGroup}>
-          <label className={shared.label}>Type</label>
-          <select
-            className={shared.select}
-            value={form.type}
-            onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-          >
-            <option value="tutoring">Tutoring (paid)</option>
-            <option value="peer">Peer (free)</option>
-          </select>
-        </div>
+        <h2 style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 600 }}>
+          {isPeer ? 'New peer service' : 'New tutoring service'}
+        </h2>
         <div className={shared.formGroup}>
           <label className={shared.label}>Title</label>
           <input
@@ -104,20 +154,60 @@ export function Services() {
         </div>
         <div className={shared.formGroup}>
           <label className={shared.label}>Subject</label>
-          <input
-            className={shared.input}
+          <select
+            className={shared.select}
             value={form.subject}
             onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
             required
-          />
+          >
+            {SUBJECT_SELECT_OPTIONS.map((subject) => (
+              <option key={subject} value={subject}>
+                {subject}
+              </option>
+            ))}
+          </select>
         </div>
         <div className={shared.formGroup}>
-          <label className={shared.label}>Topic / grade hint</label>
+          <label className={shared.label}>Grade level</label>
+          <select
+            className={shared.select}
+            value={form.grade_level}
+            onChange={(e) => setForm((f) => ({ ...f, grade_level: e.target.value }))}
+            required
+          >
+            {GRADE_SELECT_OPTIONS.map((grade) => (
+              <option key={grade} value={grade}>
+                {grade}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className={shared.formGroup}>
+          <label className={shared.label}>Topic</label>
           <input
             className={shared.input}
             value={form.topic}
             onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
-            placeholder="e.g. High School, Vectors"
+            placeholder="e.g. Vectors, Essay writing"
+          />
+        </div>
+        <div className={shared.formGroup}>
+          <label className={shared.label}>Description</label>
+          <textarea
+            className={shared.textarea}
+            value={form.description}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            placeholder="Describe what you offer in this session"
+          />
+        </div>
+        <div className={shared.formGroup}>
+          <label className={shared.label}>Banner image (optional)</label>
+          <input
+            ref={bannerRef}
+            type="file"
+            accept="image/*"
+            onChange={(e) => setBannerFile(e.target.files?.[0] ?? null)}
+            className={shared.input}
           />
         </div>
         <div className={shared.formGroup}>
@@ -132,20 +222,34 @@ export function Services() {
             min={15}
           />
         </div>
-        {form.type !== 'peer' && (
+        {!isPeer && (
           <div className={shared.formGroup}>
-            <label className={shared.label}>Price (USD)</label>
+            <label className={shared.label}>Price (rupiah)</label>
             <input
-              type="number"
+              type="text"
               className={shared.input}
-              value={form.price}
-              onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))}
-              min={0}
+              value={(form as typeof tutorEmptyForm).priceInput}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, priceInput: e.target.value }))
+              }
+              onBlur={() =>
+                setForm((f) => {
+                  const tutorForm = f as typeof tutorEmptyForm;
+                  const amount = parseIdrInput(tutorForm.priceInput);
+                  return {
+                    ...tutorForm,
+                    price: amount,
+                    priceInput: formatIdrInputValue(amount),
+                  };
+                })
+              }
+              placeholder="45.000,00"
+              required
             />
           </div>
         )}
-        <button type="submit" className={shared.btnPrimary}>
-          Create Service
+        <button type="submit" className={shared.btnPrimary} disabled={submitting}>
+          {submitting ? 'Creating…' : 'Create service'}
         </button>
       </form>
 
@@ -156,34 +260,45 @@ export function Services() {
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {services.map((s) => (
-            <li
-              key={s.service_id}
-              className={shared.card}
-              style={{
-                padding: 16,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <div>
-                <strong>{s.title}</strong>
-                <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--color-text-muted)' }}>
-                  {s.subject} · {s.topic} · {s.duration_minutes} min ·{' '}
-                  {s.price === 0 ? 'Free' : `$${s.price}`}
+            <li key={s.service_id} className={shared.detailCard}>
+              {s.banner_url && (
+                <img
+                  src={s.banner_url}
+                  alt=""
+                  style={{ width: '100%', height: 120, objectFit: 'cover' }}
+                />
+              )}
+              <div className={shared.detailCardBody}>
+                <p className={shared.detailRow}>
+                  <strong>Title</strong>
+                  {s.title}
                 </p>
+                <p className={shared.detailRow}>
+                  <strong>Subject</strong>
+                  {s.subject} · {s.grade_level ?? s.topic}
+                </p>
+                {s.description && (
+                  <p className={shared.detailRow}>
+                    <strong>Description</strong>
+                    {s.description}
+                  </p>
+                )}
+                <p className={shared.detailRow}>
+                  <strong>Price</strong>
+                  {formatPriceIdrPlain(s.price, s.type)} · {s.duration_minutes} min
+                </p>
+                <button
+                  type="button"
+                  className={shared.btnOutline}
+                  onClick={() => handleDelete(s.service_id)}
+                >
+                  Delete
+                </button>
               </div>
-              <button
-                type="button"
-                className={shared.btnOutline}
-                onClick={() => handleDelete(s.service_id)}
-              >
-                Delete
-              </button>
             </li>
           ))}
         </ul>
       )}
-    </AppLayout>
+    </div>
   );
 }

@@ -1,4 +1,6 @@
 import type { UserProfile } from '../types';
+import { formatIdr, formatWalletBalance } from '../utils/currency';
+import { supabase } from './supabase';
 
 const MOCK_TRANSACTIONS_KEY = 'plti_mock_wallet_tx';
 
@@ -35,10 +37,104 @@ export function addMockTopUp(amount: number): MockWalletTransaction[] {
   return updated;
 }
 
+export function getWalletBalance(profile: UserProfile | null): number {
+  return Number(profile?.wallet_balance ?? 0);
+}
+
+/** @deprecated Use getWalletBalance for payments; mock top-ups are demo-only on Wallet page */
 export function getDisplayBalance(profile: UserProfile | null): number {
-  const base = Number(profile?.wallet_balance ?? 0);
+  const base = getWalletBalance(profile);
   const mockTotal = getMockTransactions().reduce((sum, t) => sum + t.amount, 0);
   return base + mockTotal;
+}
+
+export function assertSufficientBalance(balance: number, cost: number): void {
+  if (cost <= 0) {
+    return;
+  }
+
+  if (balance < cost) {
+    throw new Error(
+      `Insufficient wallet balance. You have ${formatWalletBalance(balance)} but need ${formatWalletBalance(cost)}.`,
+    );
+  }
+}
+
+export async function deductWalletBalance(userId: string, amount: number): Promise<number> {
+  if (amount <= 0) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('wallet_balance')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return Number(data.wallet_balance ?? 0);
+  }
+
+  const { data: user, error: fetchError } = await supabase
+    .from('users')
+    .select('wallet_balance')
+    .eq('user_id', userId)
+    .single();
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  const current = Number(user.wallet_balance ?? 0);
+  assertSufficientBalance(current, amount);
+
+  const newBalance = current - amount;
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ wallet_balance: newBalance })
+    .eq('user_id', userId);
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  return newBalance;
+}
+
+export async function refundWalletBalance(userId: string, amount: number): Promise<number> {
+  if (amount <= 0) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('wallet_balance')
+      .eq('user_id', userId)
+      .single();
+    if (error) throw error;
+    return Number(data.wallet_balance ?? 0);
+  }
+
+  const { data: user, error: fetchError } = await supabase
+    .from('users')
+    .select('wallet_balance')
+    .eq('user_id', userId)
+    .single();
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  const current = Number(user.wallet_balance ?? 0);
+  const newBalance = current + amount;
+
+  const { error: updateError } = await supabase
+    .from('users')
+    .update({ wallet_balance: newBalance })
+    .eq('user_id', userId);
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  return newBalance;
 }
 
 export interface MockEarningsSummary {
@@ -49,9 +145,9 @@ export interface MockEarningsSummary {
 
 export function getMockEarnings(): MockEarningsSummary {
   return {
-    available: 248.5,
-    pending: 75.0,
-    lifetime: 1240.0,
+    available: 248_000,
+    pending: 75_000,
+    lifetime: 1_240_000,
   };
 }
 
@@ -61,6 +157,6 @@ export function requestMockWithdrawal(amount: number): { success: boolean; messa
   }
   return {
     success: true,
-    message: `Mock withdrawal of $${amount.toFixed(2)} submitted. Funds typically arrive in 3–5 business days (demo only).`,
+    message: `Mock withdrawal of ${formatIdr(amount)} submitted. Funds typically arrive in 3–5 business days (demo only).`,
   };
 }

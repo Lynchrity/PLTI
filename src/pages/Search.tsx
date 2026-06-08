@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { BookingFormModal } from '../components/BookingForm/BookingFormModal';
+import type { BookingSuccessPayload } from '../components/BookingForm/BookingFormModal';
+import { PaymentConfirmedModal } from '../components/Modal/PaymentConfirmedModal';
 import { AppLayout } from '../components/AppLayout/AppLayout';
 import { ServiceCard } from '../components/ServiceCard/ServiceCard';
 import {
@@ -9,10 +12,9 @@ import {
   SERVICE_TYPE_OPTIONS,
   SUBJECT_OPTIONS,
 } from '../constants/filters';
-import { useApp } from '../context/AppContext';
 import { searchServices } from '../services/marketplaceService';
-import { bookService } from '../services/scheduleService';
 import type { SearchFilters, ServiceWithTutor } from '../types';
+import { parseIdrInput } from '../utils/currency';
 import shared from '../styles/shared.module.css';
 import styles from './Search.module.css';
 
@@ -28,7 +30,6 @@ const defaultFilters: SearchFilters = {
 };
 
 export function Search() {
-  const { profile } = useApp();
   const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState<SearchFilters>(() => ({
     ...defaultFilters,
@@ -39,13 +40,14 @@ export function Search() {
   const [results, setResults] = useState<ServiceWithTutor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [booking, setBooking] = useState<ServiceWithTutor | null>(null);
+  const [bookingService, setBookingService] = useState<ServiceWithTutor | null>(null);
   const [bookMessage, setBookMessage] = useState('');
+  const [paymentConfirmed, setPaymentConfirmed] = useState<BookingSuccessPayload | null>(null);
 
   const activeFilters = useMemo(
     () => ({
       ...filters,
-      maxPrice: maxPriceInput ? Number(maxPriceInput) : null,
+      maxPrice: maxPriceInput ? parseIdrInput(maxPriceInput) : null,
     }),
     [filters, maxPriceInput],
   );
@@ -75,36 +77,22 @@ export function Search() {
     };
   }, [activeFilters]);
 
-  const handleBook = async (service: ServiceWithTutor) => {
-    if (!profile) return;
-    setBooking(service);
+  const handleBook = (service: ServiceWithTutor) => {
     setBookMessage('');
+    setPaymentConfirmed(null);
+    setBookingService(service);
+  };
 
-    const isFree = service.type.toLowerCase() === 'peer' || service.price === 0;
-    const amount = isFree ? 0 : Number(service.price ?? 0);
-    const start = new Date();
-    start.setDate(start.getDate() + 1);
-    start.setHours(13, 0, 0, 0);
-    const end = new Date(start);
-    end.setMinutes(end.getMinutes() + (service.duration_minutes ?? 30));
-
-    try {
-      const schedule = await bookService({
-        serviceId: service.service_id,
-        initiatorId: profile.user_id,
-        participantId: service.creator_id,
-        sessionStart: start.toISOString(),
-        sessionEnd: end.toISOString(),
-        totalAmount: amount,
-      });
+  const handleBookingSuccess = (payload: BookingSuccessPayload) => {
+    if (payload.isFree) {
       setBookMessage(
-        isFree
-          ? `Peer session booked (free)! Schedule ID: ${schedule.schedule_id}`
-          : `Session booked (mock payment). Schedule ID: ${schedule.schedule_id}`,
+        `Request sent to ${payload.tutorName} for ${new Date(payload.sessionStart).toLocaleString()}. They will accept or reject your booking.`,
       );
-    } catch (err) {
-      setBookMessage(err instanceof Error ? err.message : 'Booking failed.');
+      return;
     }
+
+    setBookMessage('');
+    setPaymentConfirmed(payload);
   };
 
   return (
@@ -160,7 +148,7 @@ export function Search() {
         <input
           type="number"
           className={`${shared.input} ${styles.filterSelect}`}
-          placeholder="Max price"
+          placeholder="Max price (rupiah)"
           value={maxPriceInput}
           onChange={(e) => setMaxPriceInput(e.target.value)}
           min={0}
@@ -215,12 +203,28 @@ export function Search() {
         ))}
       </div>
 
-      {booking && bookMessage && (
+      {bookMessage && (
         <div className={styles.bookingPanel}>
-          <p>
-            <strong>{booking.title}</strong>: {bookMessage}
-          </p>
+          <p>{bookMessage}</p>
         </div>
+      )}
+
+      <BookingFormModal
+        service={bookingService}
+        onClose={() => setBookingService(null)}
+        onSuccess={handleBookingSuccess}
+      />
+
+      {paymentConfirmed && !paymentConfirmed.isFree && (
+        <PaymentConfirmedModal
+          details={{
+            amount: paymentConfirmed.amount,
+            tutorName: paymentConfirmed.tutorName,
+            sessionStart: paymentConfirmed.sessionStart,
+            remainingBalance: paymentConfirmed.remainingBalance,
+          }}
+          onClose={() => setPaymentConfirmed(null)}
+        />
       )}
     </AppLayout>
   );

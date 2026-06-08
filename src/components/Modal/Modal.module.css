@@ -1,0 +1,93 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  z-index: 200;
+}
+
+.modal {
+  width: 100%;
+  max-width: 440px;
+  background: var(--color-surface);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  padding: 24px;
+}
+
+.title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.subtitle {
+  margin: 0 0 20px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.methodList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.methodBtn {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.methodBtn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-card-header);
+}
+
+.confirmedIcon {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.balanceRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: var(--color-card-header);
+  font-size: 14px;
+}
+
+.balanceRow strong {
+  font-size: 16px;
+}
+
+.insufficient {
+  color: #dc2626;
+  font-size: 13px;
+  margin: -8px 0 16px;
+}

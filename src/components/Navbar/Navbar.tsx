@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { AppLogo } from '../AppLogo/AppLogo';
 import { getNavItems } from '../../constants/navigation';
 import { useApp } from '../../context/AppContext';
 import { logout } from '../../services/authService';
@@ -19,8 +20,7 @@ export function Navbar() {
   return (
     <nav className={styles.navbar}>
       <Link to="/dashboard" className={styles.logo}>
-        <span className={styles.logoMark}>S</span>
-        <span>Study Buddy</span>
+        <AppLogo size={36} showWordmark />
       </Link>
 
       <ul className={styles.navLinks}>
@@ -45,9 +45,13 @@ export function Navbar() {
         {profile && (
           <span className={styles.greeting}>Hello, {profile.name.split(' ')[0]}</span>
         )}
-        <span className={styles.avatar} title={profile?.name}>
-          {initials}
-        </span>
+        <Link to="/profile" className={styles.avatar} title={profile?.name ?? 'Profile'}>
+          {profile?.profile_picture_url ? (
+            <img src={profile.profile_picture_url} alt="" className={styles.avatarImage} />
+          ) : (
+            initials
+          )}
+        </Link>
         <button type="button" className={styles.logoutBtn} onClick={handleLogout}>
           Logout
         </button>

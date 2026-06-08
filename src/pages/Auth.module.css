@@ -27,6 +27,10 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
+.authLogo {
+  text-decoration: none;
+}
+
 .navRight {
   display: flex;
   align-items: center;
@@ -77,14 +81,17 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
 }
 
 .heroTitle {
   font-size: 60px;
-  font-weight: 900;
+  font-weight: 700;
   color: black;
   margin-bottom: 24px;
   line-height: 1.2;
+  text-align: center;
+  align-self: center;
 }
 
 .heroSubtitle {
@@ -92,11 +99,15 @@
   color: #4b5563;
   margin-bottom: 64px;
   line-height: 1.6;
+  text-align: center;
+  align-self: center;
 }
 
 .featureCards {
   display: flex;
   gap: 32px;
+  justify-content: center;
+  align-self: center;
 }
 
 .featureCard {
@@ -437,13 +448,24 @@
     padding: 32px 24px;
   }
 
+  .leftSection {
+    align-items: center;
+  }
+
   .heroTitle {
     font-size: 36px;
+    text-align: center;
+  }
+
+  .heroSubtitle {
+    text-align: center;
   }
 
   .featureCards {
     flex-direction: column;
     gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .navbar {

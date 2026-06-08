@@ -8,6 +8,7 @@ export interface NavItem {
 export const STUDENT_NAV: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard' },
   { label: 'Search', path: '/search' },
+  { label: 'Services', path: '/services' },
   { label: 'History', path: '/history' },
   { label: 'Chat', path: '/chat' },
   { label: 'Profile', path: '/profile' },
@@ -15,6 +16,7 @@ export const STUDENT_NAV: NavItem[] = [
 
 export const TUTOR_NAV: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard' },
+  { label: 'Services', path: '/services' },
   { label: 'Requests', path: '/requests' },
   { label: 'Sessions', path: '/sessions' },
   { label: 'Chat', path: '/chat' },
@@ -36,4 +38,5 @@ export function getNavItems(role: UserRole, isAdmin = false): NavItem[] {
 }
 
 export const ROLE_STORAGE_KEY = 'plti_role';
+export const ACCOUNT_ROLES_KEY = 'plti_account_roles';
 export const PROFILE_EXTRAS_KEY = 'plti_profile_extras';

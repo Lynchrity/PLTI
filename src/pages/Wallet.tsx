@@ -7,6 +7,7 @@ import {
   getMockTransactions,
   type MockWalletTransaction,
 } from '../services/walletService';
+import { formatWalletBalance } from '../utils/currency';
 import shared from '../styles/shared.module.css';
 
 export function Wallet() {
@@ -32,8 +33,8 @@ export function Wallet() {
 
       <div className={shared.card} style={{ padding: 24, marginBottom: 24, maxWidth: 480 }}>
         <p style={{ color: 'var(--color-text-muted)', margin: 0 }}>Available balance</p>
-        <p style={{ fontSize: 40, fontWeight: 900, margin: '8px 0 20px' }}>
-          ${balance.toFixed(2)}
+        <p style={{ fontSize: 40, fontWeight: 600, margin: '8px 0 20px' }}>
+          {formatWalletBalance(balance)}
         </p>
         <div style={{ display: 'flex', gap: 8 }}>
           <input
@@ -67,7 +68,7 @@ export function Wallet() {
             >
               <span>{t.label}</span>
               <span style={{ color: '#16a34a', fontWeight: 700 }}>
-                +${t.amount.toFixed(2)}
+                +{t.amount}K
               </span>
             </li>
           ))}

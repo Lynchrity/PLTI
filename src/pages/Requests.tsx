@@ -1,69 +1,135 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AppLayout } from '../components/AppLayout/AppLayout';
+import { StartChatButton } from '../components/StartChatButton/StartChatButton';
 import { useApp } from '../context/AppContext';
-import { getUserSchedules } from '../services/scheduleService';
-import { supabase } from '../services/supabase';
-import type { Schedule } from '../types';
+import {
+  acceptScheduleRequest,
+  getPendingRequestsForTutor,
+  processAllScheduleUpdates,
+  rejectScheduleRequest,
+  type ScheduleRequestWithDetails,
+} from '../services/scheduleService';
+import { APP_TIMEZONE_LABEL, formatSessionRange } from '../utils/timezone';
+import { getErrorMessage } from '../utils/errors';
 import shared from '../styles/shared.module.css';
+import styles from './Requests.module.css';
 
 export function Requests() {
   const { profile } = useApp();
-  const [requests, setRequests] = useState<(Schedule & { title?: string })[]>([]);
+  const [requests, setRequests] = useState<ScheduleRequestWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [actingId, setActingId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!profile) return;
-
-    async function load() {
-      const all = await getUserSchedules(profile!.user_id);
-      const pending = all.filter(
-        (s) =>
-          s.participant_id === profile!.user_id &&
-          (s.status === 'scheduled' || !s.participant_confirmed),
-      );
-
-      const serviceIds = pending.map((p) => p.service_id);
-      const { data: services } = await supabase
-        .from('services')
-        .select('service_id, title')
-        .in('service_id', serviceIds.length ? serviceIds : ['00000000-0000-0000-0000-000000000000']);
-
-      const titleMap = new Map((services ?? []).map((s) => [s.service_id, s.title]));
-
-      setRequests(
-        pending.map((p) => ({ ...p, title: titleMap.get(p.service_id) })),
-      );
+    setLoading(true);
+    setError('');
+    try {
+      await processAllScheduleUpdates(profile.user_id);
+      const data = await getPendingRequestsForTutor(profile.user_id);
+      setRequests(data);
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to load requests.'));
+    } finally {
       setLoading(false);
     }
-
-    load();
   }, [profile]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleAccept = async (scheduleId: string) => {
+    setActingId(scheduleId);
+    setMessage('');
+    setError('');
+    try {
+      await acceptScheduleRequest(scheduleId);
+      setMessage('Request accepted.');
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to accept request.'));
+    } finally {
+      setActingId(null);
+    }
+  };
+
+  const handleReject = async (scheduleId: string) => {
+    setActingId(scheduleId);
+    setMessage('');
+    setError('');
+    try {
+      await rejectScheduleRequest(scheduleId);
+      setMessage('Request rejected. Payment refunded to the student.');
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to reject request.'));
+    } finally {
+      setActingId(null);
+    }
+  };
 
   return (
     <AppLayout>
-      <h1 className={shared.pageTitle}>Requests</h1>
-      <p className={shared.pageSubtitle}>Incoming session requests from students.</p>
+      <div className={shared.pageContent}>
+        <h1 className={shared.pageTitle}>Requests</h1>
+        <p className={shared.pageSubtitle}>
+          Review incoming session requests. Times are in {APP_TIMEZONE_LABEL}. Unaccepted paid
+          requests are auto-refunded after the session start time passes.
+        </p>
 
-      {loading ? (
-        <p>Loading…</p>
-      ) : requests.length === 0 ? (
-        <p className={shared.empty}>No pending requests.</p>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {requests.map((r) => (
-            <li key={r.schedule_id} className={shared.card} style={{ padding: 16 }}>
-              <strong>{r.title ?? 'Session request'}</strong>
-              <p style={{ margin: '4px 0 12px', color: 'var(--color-text-muted)', fontSize: 14 }}>
-                {new Date(r.session_start).toLocaleString()} · {r.status}
-              </p>
-              <Link to={`/sessions/${r.schedule_id}`} className={shared.btnPrimary}>
-                View Session Details
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+        {error && <div className={shared.error}>{error}</div>}
+        {message && <p className={styles.message}>{message}</p>}
+
+        {loading ? (
+          <p>Loading…</p>
+        ) : requests.length === 0 ? (
+          <p className={shared.empty}>No pending requests.</p>
+        ) : (
+          <ul className={styles.list}>
+            {requests.map((r) => (
+              <li key={r.schedule_id} className={`${shared.detailCard} ${styles.card}`}>
+                <div className={shared.cardHeader}>{r.service_title ?? 'Session request'}</div>
+                <div className={styles.cardBody}>
+                  <div className={styles.cardInfo}>
+                    <p className={styles.meta}>
+                      From <strong>{r.student_name}</strong>
+                    </p>
+                    <p className={styles.meta}>
+                      {formatSessionRange(r.session_start, r.session_end)}
+                    </p>
+                  </div>
+                  <div className={styles.actions}>
+                    <StartChatButton peerId={r.initiator_id} peerName={r.student_name} />
+                    <button
+                      type="button"
+                      className={shared.btnPrimary}
+                      disabled={actingId === r.schedule_id}
+                      onClick={() => handleAccept(r.schedule_id)}
+                    >
+                      {actingId === r.schedule_id ? 'Working…' : 'Accept'}
+                    </button>
+                    <button
+                      type="button"
+                      className={shared.btnOutline}
+                      disabled={actingId === r.schedule_id}
+                      onClick={() => handleReject(r.schedule_id)}
+                    >
+                      Reject
+                    </button>
+                    <Link to={`/sessions/${r.schedule_id}`} className={styles.detailsLink}>
+                      Details
+                    </Link>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </AppLayout>
   );
 }

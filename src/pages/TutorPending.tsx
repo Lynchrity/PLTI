@@ -27,11 +27,12 @@ export function TutorPending() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (tutorApplicationStatus === 'approved') {
+  if (tutorApplicationStatus === 'approved' && !profile.is_suspended) {
     return <Navigate to="/dashboard" replace />;
   }
 
   const isRejected = tutorApplicationStatus === 'rejected';
+  const isSuspended = profile.is_suspended === true;
 
   const handleLogout = async () => {
     await logout();
@@ -41,14 +42,20 @@ export function TutorPending() {
   return (
     <main className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.icon}>{isRejected ? '✕' : '⏳'}</div>
+        <div className={styles.icon}>{isSuspended ? '🚫' : isRejected ? '✕' : '⏳'}</div>
         <h1 className={styles.title}>
-          {isRejected ? 'Application not approved' : 'Thank you for applying!'}
+          {isSuspended
+            ? 'Tutor account suspended'
+            : isRejected
+              ? 'Application not approved'
+              : 'Thank you for applying!'}
         </h1>
         <p className={styles.message}>
-          {isRejected
-            ? 'Your tutor application was not approved. Please contact support if you have questions.'
-            : 'Thank you for applying to be a tutor. We are processing your request — this usually takes a few days. You will be able to access tutor features once an admin approves your application.'}
+          {isSuspended
+            ? 'Your tutor account was suspended after repeated no-shows. Student refunds and penalty fees have been applied. Contact support to appeal.'
+            : isRejected
+              ? 'Your tutor application was not approved. Please contact support if you have questions.'
+              : 'Thank you for applying to be a tutor. We are processing your request — this usually takes a few days. You will be able to access tutor features once an admin approves your application.'}
         </p>
         <div className={styles.actions}>
           <button type="button" className={styles.logoutBtn} onClick={handleLogout}>

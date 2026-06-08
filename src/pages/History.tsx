@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   AdminApplicationFilters,
   type SortOrder,
@@ -7,10 +7,18 @@ import {
 import { TutorApplicationCard } from '../components/admin/TutorApplicationCard';
 import { AppLayout } from '../components/AppLayout/AppLayout';
 import { useApp } from '../context/AppContext';
-import { getUserSchedules } from '../services/scheduleService';
+import { formatScheduleStatus } from '../services/attendanceService';
+import {
+  cancelScheduleRequest,
+  getUserSchedules,
+  processAllScheduleUpdates,
+} from '../services/scheduleService';
 import { supabase } from '../services/supabase';
 import { listTutorApplications, type TutorApplicationWithUser } from '../services/tutorApplicationService';
 import type { Schedule } from '../types';
+import { isPeerService } from '../utils/currency';
+import { APP_TIMEZONE_LABEL, formatSessionDateTime } from '../utils/timezone';
+import { getErrorMessage } from '../utils/errors';
 import shared from '../styles/shared.module.css';
 import styles from './History.module.css';
 
@@ -86,56 +94,90 @@ function AdminApplicationHistory() {
 }
 
 function UserSessionHistory() {
-  const { profile } = useApp();
+  const { profile, refreshProfile } = useApp();
+  const location = useLocation();
   const [tab, setTab] = useState<HistoryTab>('tutoring');
   const [schedules, setSchedules] = useState<ScheduleWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actingId, setActingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!profile) return;
+    await processAllScheduleUpdates(profile.user_id);
+    const rows = await getUserSchedules(profile.user_id);
+    const serviceIds = [...new Set(rows.map((r) => r.service_id))];
+
+    const { data: services } = await supabase
+      .from('services')
+      .select('service_id, type, title, price')
+      .in('service_id', serviceIds.length ? serviceIds : ['00000000-0000-0000-0000-000000000000']);
+
+    const serviceMap = new Map((services ?? []).map((s) => [s.service_id, s]));
+
+    setSchedules(
+      rows.map((r) => {
+        const svc = serviceMap.get(r.service_id);
+        return {
+          ...r,
+          service_type: svc?.type,
+          service_title: svc?.title,
+          price: svc?.price,
+        };
+      }),
+    );
+  }, [profile]);
 
   useEffect(() => {
     if (!profile) return;
+    setLoading(true);
+    load()
+      .catch((err) => setError(getErrorMessage(err, 'Failed to load history.')))
+      .finally(() => setLoading(false));
+  }, [profile, load, location.key]);
 
-    async function load() {
-      const rows = await getUserSchedules(profile!.user_id);
-      const serviceIds = [...new Set(rows.map((r) => r.service_id))];
+  useEffect(() => {
+    const refresh = () => {
+      if (!profile) return;
+      load().catch(() => undefined);
+    };
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [profile, load]);
 
-      const { data: services } = await supabase
-        .from('services')
-        .select('service_id, type, title, price')
-        .in('service_id', serviceIds.length ? serviceIds : ['00000000-0000-0000-0000-000000000000']);
-
-      const serviceMap = new Map((services ?? []).map((s) => [s.service_id, s]));
-
-      setSchedules(
-        rows.map((r) => {
-          const svc = serviceMap.get(r.service_id);
-          return {
-            ...r,
-            service_type: svc?.type,
-            service_title: svc?.title,
-            price: svc?.price,
-          };
-        }),
-      );
-      setLoading(false);
+  const handleCancel = async (scheduleId: string) => {
+    if (!window.confirm('Cancel this request? Paid sessions will be refunded.')) return;
+    setActingId(scheduleId);
+    setError('');
+    try {
+      await cancelScheduleRequest(scheduleId);
+      await refreshProfile();
+      await load();
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to cancel request.'));
+    } finally {
+      setActingId(null);
     }
-
-    load();
-  }, [profile]);
+  };
 
   const filtered = useMemo(() => {
     return schedules.filter((s) => {
-      const isPeer =
-        s.service_type?.toLowerCase() === 'peer' || s.price === 0;
+      const isPeer = isPeerService(s.service_type ?? '', s.price ?? null);
       return tab === 'peer' ? isPeer : !isPeer;
     });
   }, [schedules, tab]);
 
   return (
     <>
-      <h1 className={shared.pageTitle}>History</h1>
-      <p className={shared.pageSubtitle}>Review your peer and tutoring sessions.</p>
+      <div className={shared.pageContent}>
+        <h1 className={shared.pageTitle}>History</h1>
+        <p className={shared.pageSubtitle}>
+          Review your peer and tutoring sessions. Times are in {APP_TIMEZONE_LABEL}.
+        </p>
 
-      <div className={shared.tabs}>
+        {error && <div className={shared.error}>{error}</div>}
+
+        <div className={shared.tabs}>
         <button
           type="button"
           className={tab === 'peer' ? `${shared.tab} ${shared.tabActive}` : shared.tab}
@@ -159,26 +201,53 @@ function UserSessionHistory() {
       ) : filtered.length === 0 ? (
         <p className={shared.empty}>No {tab === 'peer' ? 'peer' : 'tutoring'} sessions yet.</p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filtered.map((s) => (
-            <li
-              key={s.schedule_id}
-              className={shared.card}
-              style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            >
-              <div>
-                <strong>{s.service_title ?? 'Session'}</strong>
-                <p style={{ margin: '4px 0 0', color: 'var(--color-text-muted)', fontSize: 14 }}>
-                  {new Date(s.session_start).toLocaleString()} · {s.status}
-                </p>
-              </div>
-              <Link to={`/sessions/${s.schedule_id}`} className={shared.btnPrimary}>
-                View Details
-              </Link>
-            </li>
-          ))}
+        <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {filtered.map((s) => {
+            const canCancel =
+              profile &&
+              s.initiator_id === profile.user_id &&
+              s.status === 'scheduled' &&
+              !s.participant_confirmed;
+
+            return (
+              <li key={s.schedule_id} className={shared.detailCard}>
+                <div className={shared.cardHeader}>{s.service_title ?? 'Session'}</div>
+                <div
+                  className={shared.detailCardBody}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}
+                >
+                  <div>
+                    <p className={shared.detailRow}>
+                      <strong>When</strong>
+                      {formatSessionDateTime(s.session_start)}
+                    </p>
+                    <p className={shared.detailRow}>
+                      <strong>Status</strong>
+                      {formatScheduleStatus(s.status, s)}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {canCancel && (
+                      <button
+                        type="button"
+                        className={shared.btnOutline}
+                        disabled={actingId === s.schedule_id}
+                        onClick={() => handleCancel(s.schedule_id)}
+                      >
+                        Cancel request
+                      </button>
+                    )}
+                    <Link to={`/sessions/${s.schedule_id}`} className={shared.btnPrimary}>
+                      View Details
+                    </Link>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
+      </div>
     </>
   );
 }

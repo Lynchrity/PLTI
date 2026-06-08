@@ -7,6 +7,10 @@ export interface UserProfile {
   name: string;
   email: string;
   wallet_balance: number;
+  profile_picture_url?: string | null;
+  grade_level?: string | null;
+  strike_count?: number | null;
+  is_suspended?: boolean | null;
 }
 
 export interface TutorApplication {
@@ -29,6 +33,9 @@ export interface Service {
   price: number | null;
   subject: string | null;
   topic: string | null;
+  description?: string | null;
+  banner_url?: string | null;
+  grade_level?: string | null;
   created_at: string | null;
 }
 
@@ -49,6 +56,11 @@ export interface Schedule {
   status: string;
   initiator_confirmed: boolean | null;
   participant_confirmed: boolean | null;
+  student_reports_tutor_present?: boolean | null;
+  tutor_reports_student_present?: boolean | null;
+  attendance_deadline?: string | null;
+  attendance_resolved?: boolean | null;
+  attendance_outcome?: string | null;
   created_at: string | null;
 }
 
@@ -56,8 +68,19 @@ export interface ScheduleWithDetails extends Schedule {
   service_title?: string;
   subject?: string | null;
   topic?: string | null;
+  student_name?: string;
+  tutor_name?: string;
   other_party_name?: string;
   duration_minutes?: number | null;
+  base_price?: number | null;
+}
+
+export function getStudentId(schedule: Pick<Schedule, 'initiator_id'>): string {
+  return schedule.initiator_id;
+}
+
+export function getTutorId(schedule: Pick<Schedule, 'participant_id'>): string {
+  return schedule.participant_id;
 }
 
 export interface Review {
@@ -113,6 +136,5 @@ export interface SearchFilters {
 }
 
 export interface ProfileExtras {
-  subjects_good_at: string;
-  subjects_need_help: string;
+  grade_level: string;
 }

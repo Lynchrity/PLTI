@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AppLogo } from '../components/AppLogo/AppLogo';
 import type { UserRole } from '../types';
 import { supabase } from '../services/supabase';
-import { login, signUp, signUpTutor } from '../services/authService';
+import { login, signUp, signUpTutor, INVALID_LOGIN_CREDENTIALS } from '../services/authService';
 import { resolvePostLoginPath } from '../services/adminService';
 import styles from './Auth.module.css';
 
@@ -24,6 +26,23 @@ export function Auth() {
   const [experienceSummary, setExperienceSummary] = useState('');
   const [resumeFile, setResumeFile] = useState<File | null>(null);
 
+  const formatLoginError = (message: string) => {
+    if (message === INVALID_LOGIN_CREDENTIALS) {
+      return INVALID_LOGIN_CREDENTIALS;
+    }
+    if (/invalid login credentials|invalid email or password/i.test(message)) {
+      return INVALID_LOGIN_CREDENTIALS;
+    }
+    return formatAuthError(message);
+  };
+
+  const formatSignupError = (message: string) => {
+    if (message === INVALID_LOGIN_CREDENTIALS) {
+      return INVALID_LOGIN_CREDENTIALS;
+    }
+    return formatAuthError(message);
+  };
+
   const formatAuthError = (message: string) => {
     if (message.toLowerCase().includes('email not confirmed')) {
       return 'This account exists, but the email is not confirmed yet. Confirm it in Supabase Authentication > Users, or turn off email confirmation for this school demo.';
@@ -45,7 +64,7 @@ export function Auth() {
       const data = await login(email, password, authRole);
       window.location.href = await resolvePostLoginPath(data.user, authRole);
     } catch (err) {
-      setError(formatAuthError(err instanceof Error ? err.message : 'An error occurred during login'));
+      setError(formatLoginError(err instanceof Error ? err.message : 'An error occurred during login'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -100,7 +119,7 @@ export function Auth() {
       setError('Account created. Confirm the email in Supabase Authentication > Users, then log in.');
     }
   } catch (err) {
-    setError(formatAuthError(err instanceof Error ? err.message : 'An error occurred during signup'));
+    setError(formatSignupError(err instanceof Error ? err.message : 'An error occurred during signup'));
     console.error(err);
   } finally {
     setLoading(false);
@@ -145,7 +164,9 @@ export function Auth() {
     <div className={styles.container} data-auth-role={authRole}>
       {/* Navigation Header */}
       <nav className={styles.navbar}>
-        <div></div>
+        <Link to="/login" className={styles.authLogo}>
+          <AppLogo size={40} showWordmark />
+        </Link>
         <div className={styles.navRight}>
           <button onClick={() => setIsSignup(true)} className={styles.signUpBtn}>Sign Up</button>
           <button onClick={() => setIsSignup(false)} className={styles.loginBtn}>Login</button>

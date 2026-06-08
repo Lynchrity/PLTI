@@ -156,14 +156,11 @@ export function Chat() {
   const activeRoom = rooms.find((r) => r.room_id === activeRoomId);
 
   return (
-    <AppLayout>
-      <h1 className={shared.pageTitle}>Chat</h1>
-      <p className={shared.pageSubtitle}>Message tutors and peers from your conversations.</p>
-
-      {error && <div className={shared.error}>{error}</div>}
+    <AppLayout fullBleed>
+      {error && <div className={`${shared.error} ${styles.chatError}`}>{error}</div>}
 
       {loadingRooms ? (
-        <p>Loading chats…</p>
+        <p className={styles.chatLoading}>Loading chats…</p>
       ) : (
         <div className={styles.chatLayout}>
           <aside className={styles.roomList} aria-label="Conversations">

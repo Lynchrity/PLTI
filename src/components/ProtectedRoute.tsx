@@ -20,5 +20,9 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/tutor/pending" replace />;
   }
 
+  if (role === 'tutor' && profile.is_suspended && location.pathname !== '/tutor/pending') {
+    return <Navigate to="/tutor/pending" replace />;
+  }
+
   return children;
 }

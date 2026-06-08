@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { getUserSchedules } from '../services/scheduleService';
 import { supabase } from '../services/supabase';
 import type { Schedule } from '../types';
+import { formatSessionDateTime } from '../utils/timezone';
 import shared from '../styles/shared.module.css';
 
 export function Sessions() {
@@ -59,7 +60,7 @@ export function Sessions() {
               <div>
                 <strong>{s.title ?? 'Session'}</strong>
                 <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--color-text-muted)' }}>
-                  {new Date(s.session_start).toLocaleString()} · {s.status}
+                  {formatSessionDateTime(s.session_start)} · {s.status}
                 </p>
               </div>
               <Link to={`/sessions/${s.schedule_id}`} className={shared.btnPrimary}>

@@ -1,30 +1,49 @@
 import type { ChatMessage, ChatRoomWithPeer } from '../types';
+import { getErrorMessage } from '../utils/errors';
+import { APP_TIMEZONE } from '../utils/timezone';
 import { supabase } from './supabase';
 
 export function formatChatListTime(iso: string | null | undefined): string {
   if (!iso) return '';
   const date = new Date(iso);
   const now = new Date();
-  const isToday =
-    date.getDate() === now.getDate() &&
-    date.getMonth() === now.getMonth() &&
-    date.getFullYear() === now.getFullYear();
+  const wibDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+  const wibNow = new Intl.DateTimeFormat('en-CA', {
+    timeZone: APP_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
 
-  if (isToday) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (wibDate === wibNow) {
+    return date.toLocaleTimeString('en-ID', {
+      timeZone: APP_TIMEZONE,
+      hour: 'numeric',
+      minute: '2-digit',
+    });
   }
 
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-ID', {
+    timeZone: APP_TIMEZONE,
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 export function formatMessageTime(iso: string | null | undefined): string {
   if (!iso) return '';
-  return new Date(iso).toLocaleString([], {
+  return `${new Date(iso).toLocaleString('en-ID', {
+    timeZone: APP_TIMEZONE,
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  });
+  })} WIB`;
 }
 
 export async function getUserChatRooms(userId: string): Promise<ChatRoomWithPeer[]> {
@@ -96,35 +115,73 @@ export async function getUserChatRooms(userId: string): Promise<ChatRoomWithPeer
   return enriched;
 }
 
-export async function createOrGetChatRoom(userId1: string, userId2: string): Promise<string> {
+/** DB may require user1_id < user2_id lexicographically — always store in sorted order. */
+function orderChatParticipants(id1: string, id2: string): [string, string] {
+  return id1 < id2 ? [id1, id2] : [id2, id1];
+}
+
+async function findExistingChatRoom(userId1: string, userId2: string): Promise<string | null> {
+  const [user1_id, user2_id] = orderChatParticipants(userId1, userId2);
+
+  const { data, error } = await supabase
+    .from('chat_rooms')
+    .select('room_id')
+    .eq('user1_id', user1_id)
+    .eq('user2_id', user2_id)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.room_id ?? null;
+}
+
+export async function assertChatPeerExists(peerId: string, peerName?: string): Promise<void> {
+  const { data, error } = await supabase
+    .from('users')
+    .select('user_id')
+    .eq('user_id', peerId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    const label = peerName ?? 'This tutor';
+    throw new Error(
+      `${label} does not have a complete profile in the database. They cannot receive chats or bookings until they sign up as a tutor through the app.`,
+    );
+  }
+}
+
+export async function createOrGetChatRoom(
+  userId1: string,
+  userId2: string,
+  peerName?: string,
+): Promise<string> {
   if (userId1 === userId2) {
     throw new Error('Cannot start a chat with yourself.');
   }
 
-  const { data: existingRooms, error: lookupError } = await supabase
-    .from('chat_rooms')
-    .select('room_id')
-    .or(
-      `and(user1_id.eq.${userId1},user2_id.eq.${userId2}),and(user1_id.eq.${userId2},user2_id.eq.${userId1})`,
-    )
-    .limit(1);
+  await assertChatPeerExists(userId2, peerName);
 
-  if (lookupError) {
-    throw lookupError;
+  const existingRoomId = await findExistingChatRoom(userId1, userId2);
+  if (existingRoomId) {
+    return existingRoomId;
   }
 
-  if (existingRooms?.[0]?.room_id) {
-    return existingRooms[0].room_id;
-  }
+  const [user1_id, user2_id] = orderChatParticipants(userId1, userId2);
 
   const { data, error } = await supabase
     .from('chat_rooms')
-    .insert({ user1_id: userId1, user2_id: userId2 })
+    .insert({ user1_id, user2_id })
     .select('room_id')
     .single();
 
   if (error) {
-    throw error;
+    throw new Error(getErrorMessage(error, 'Could not create chat room.'));
   }
 
   return data.room_id;

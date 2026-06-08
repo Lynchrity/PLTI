@@ -28,8 +28,7 @@ interface AppContextValue {
 }
 
 const defaultExtras: ProfileExtras = {
-  subjects_good_at: '',
-  subjects_need_help: '',
+  grade_level: '',
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -42,7 +41,11 @@ function loadRole(): UserRole {
 function loadExtras(): ProfileExtras {
   try {
     const raw = localStorage.getItem(PROFILE_EXTRAS_KEY);
-    return raw ? { ...defaultExtras, ...(JSON.parse(raw) as ProfileExtras) } : defaultExtras;
+    if (!raw) return defaultExtras;
+    const parsed = JSON.parse(raw) as Partial<ProfileExtras>;
+    return {
+      grade_level: parsed.grade_level ?? '',
+    };
   } catch {
     return defaultExtras;
   }
@@ -72,6 +75,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (current) {
         const application = await getTutorApplication(current.user_id);
         setTutorApplicationStatus(application?.status ?? null);
+
+        setProfileExtras({
+          grade_level: current.grade_level ?? '',
+        });
       } else {
         setTutorApplicationStatus(null);
       }

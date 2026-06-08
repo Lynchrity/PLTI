@@ -19,7 +19,12 @@ export const GRADE_LEVEL_OPTIONS = [
   'High School',
   'Undergraduate',
   'Graduate',
+  'Higher than Undergraduate',
 ];
+
+export const GRADE_SELECT_OPTIONS = GRADE_LEVEL_OPTIONS.filter((g) => g !== 'All grades');
+
+export const SUBJECT_SELECT_OPTIONS = SUBJECT_OPTIONS.filter((s) => s !== 'All subjects');
 
 export const DURATION_OPTIONS = [
   { label: 'Any duration', value: '' },

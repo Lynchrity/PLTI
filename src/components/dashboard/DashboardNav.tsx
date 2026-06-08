@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { AppLogo } from '../AppLogo/AppLogo';
 import styles from './DashboardNav.module.css';
 
 export type DashboardRole = 'student' | 'tutor';
@@ -32,7 +33,7 @@ export function DashboardNav({ role, activePath }: DashboardNavProps) {
   return (
     <nav className={styles.navbar}>
       <Link to={role === 'tutor' ? '/dashboard/tutor' : '/dashboard'} className={styles.logo}>
-        <span className={styles.logoMark}>S</span>
+        <AppLogo size={40} />
       </Link>
 
       <ul className={styles.navLinks}>

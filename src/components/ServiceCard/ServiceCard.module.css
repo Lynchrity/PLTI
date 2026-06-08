@@ -23,12 +23,18 @@
 }
 
 .thumbnailText {
-  font-weight: 800;
+  font-weight: 600;
   font-size: 14px;
   text-align: center;
   color: var(--color-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.bannerImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .freeBadge {
@@ -72,11 +78,21 @@
 }
 
 .title {
-  font-size: 15px;
+  margin: 0 0 8px;
+  font-size: 16px;
   font-weight: 600;
   line-height: 1.35;
-  margin: 0;
-  color: var(--color-text);
+}
+
+.description {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .rating {
@@ -106,7 +122,7 @@
 }
 
 .price {
-  font-weight: 800;
+  font-weight: 600;
   font-size: 16px;
 }
 

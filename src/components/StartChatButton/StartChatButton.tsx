@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { createOrGetChatRoom } from '../../services/chatService';
+import { getErrorMessage } from '../../utils/errors';
 import shared from '../../styles/shared.module.css';
 import styles from './StartChatButton.module.css';
 
@@ -33,10 +34,10 @@ export function StartChatButton({
     setError('');
     setLoading(true);
     try {
-      const roomId = await createOrGetChatRoom(profile.user_id, peerId);
+      const roomId = await createOrGetChatRoom(profile.user_id, peerId, peerName);
       navigate(`/chat?room=${roomId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start chat.');
+      setError(getErrorMessage(err, 'Could not start chat.'));
     } finally {
       setLoading(false);
     }

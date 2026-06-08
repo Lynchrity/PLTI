@@ -1,27 +1,81 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TutorApplicationCard } from '../components/admin/TutorApplicationCard';
 import { AppLayout } from '../components/AppLayout/AppLayout';
+import { ComingSoonModal } from '../components/Modal/ComingSoonModal';
+import { TopUpModal } from '../components/Modal/TopUpModal';
 import { useApp } from '../context/AppContext';
-import { getUpcomingSchedule, getUserSchedules } from '../services/scheduleService';
+import { filterOngoingSessions } from '../services/attendanceService';
+import { getUpcomingSchedule, getUserSchedules, processAllScheduleUpdates } from '../services/scheduleService';
+import { getWalletBalance } from '../services/walletService';
 import {
   listTutorApplications,
   reviewTutorApplication,
   type TutorApplicationWithUser,
 } from '../services/tutorApplicationService';
 import type { Schedule, ScheduleWithDetails } from '../types';
+import { formatWalletBalance } from '../utils/currency';
+import { formatSessionRange, parseAppTimestamp } from '../utils/timezone';
 import shared from '../styles/shared.module.css';
 import styles from './Dashboard.module.css';
 
 function formatRelativeDate(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const date = parseAppTimestamp(dateStr);
+  if (!date) return '—';
+  const diff = Date.now() - date.getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   if (days === 0) return 'Today';
   if (days === 1) return '1 day ago';
   return `${days} days ago`;
 }
 
-function StudentDashboard({ name, recentSchedules }: { name: string; recentSchedules: Schedule[] }) {
+function OngoingSessionsPanel({ sessions }: { sessions: Schedule[] }) {
+  if (sessions.length === 0) {
+    return (
+      <div className={`${styles.widget} ${styles.widgetFull}`}>
+        <div className={styles.widgetHeader}>Ongoing Sessions</div>
+        <div className={styles.widgetBody}>
+          <p className={shared.empty}>No sessions in progress right now.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${styles.widget} ${styles.widgetFull}`}>
+      <div className={styles.widgetHeader}>Ongoing Sessions</div>
+      <div className={styles.widgetBody}>
+        <ul className={styles.historyList}>
+          {sessions.map((s) => (
+            <li key={s.schedule_id} className={styles.historyItem} style={{ alignItems: 'center' }}>
+              <span>●</span>
+              <span style={{ flex: 1 }}>
+                Session started — confirm attendance within 15 minutes
+              </span>
+              <Link to={`/sessions/${s.schedule_id}`} className={shared.btnPrimary}>
+                Check attendance
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function StudentDashboard({
+  name,
+  recentSchedules,
+  ongoingSessions,
+  walletBalance,
+  onTopUp,
+}: {
+  name: string;
+  recentSchedules: Schedule[];
+  ongoingSessions: Schedule[];
+  walletBalance: number;
+  onTopUp: () => void;
+}) {
   return (
     <div className={styles.dashboard}>
       <section className={styles.hero}>
@@ -38,25 +92,40 @@ function StudentDashboard({ name, recentSchedules }: { name: string; recentSched
       </section>
 
       <section className={styles.widgets}>
-        <div className={`${styles.widget} ${styles.widgetFull}`}>
-          <div className={styles.widgetHeader}>🎯 Session Status</div>
+        <OngoingSessionsPanel sessions={ongoingSessions} />
+
+        <div className={styles.widget}>
+          <div className={styles.widgetHeader}>💳 Wallet</div>
           <div className={styles.widgetBody}>
-            <p className={styles.statusText}>
-              Current Status: <strong>No Active Sessions</strong>
-            </p>
-            <div className={styles.illustration}>📚</div>
-            <p className={styles.widgetFooter}>Your desk is ready when you are.</p>
+            <p className={styles.walletBalance}>{formatWalletBalance(walletBalance)}</p>
+            <button type="button" className={shared.btnPrimary} onClick={onTopUp}>
+              Top up
+            </button>
           </div>
         </div>
 
         <div className={styles.widget}>
-          <div className={styles.widgetHeader}>🔍 Active Matches</div>
+          <div className={styles.widgetHeader}>📅 Upcoming Sessions</div>
           <div className={styles.widgetBody}>
-            <p className={styles.statusText}>
-              Scanning for available tutors for your subjects… ✨
-            </p>
-            <Link to="/search" className={shared.btnPrimary} style={{ marginTop: 12 }}>
-              Browse Search
+            {recentSchedules.filter((s) => ['scheduled', 'confirmed'].includes(s.status)).length === 0 ? (
+              <p className={shared.empty}>No upcoming sessions.</p>
+            ) : (
+              <ul className={styles.historyList}>
+                {recentSchedules
+                  .filter((s) => ['scheduled', 'confirmed'].includes(s.status))
+                  .slice(0, 2)
+                  .map((s) => (
+                    <li key={s.schedule_id} className={styles.historyItem}>
+                      <span>•</span>
+                      <span>
+                        {s.status} — {formatRelativeDate(s.session_start)}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            <Link to="/history" className={shared.btnOutline} style={{ marginTop: 12 }}>
+              View history
             </Link>
           </div>
         </div>
@@ -92,10 +161,12 @@ function TutorDashboard({
   name,
   upcoming,
   recentSchedules,
+  ongoingSessions,
 }: {
   name: string;
   upcoming: ScheduleWithDetails | null;
   recentSchedules: Schedule[];
+  ongoingSessions: Schedule[];
 }) {
   return (
     <div className={styles.dashboard}>
@@ -113,6 +184,8 @@ function TutorDashboard({
       </section>
 
       <section className={styles.widgets}>
+        <OngoingSessionsPanel sessions={ongoingSessions} />
+
         <div className={`${styles.widget} ${styles.widgetFull}`}>
           <div className={styles.widgetHeader}>Your Next Session</div>
           <div className={styles.widgetBody}>
@@ -131,8 +204,7 @@ function TutorDashboard({
                   </span>
                   <span>
                     <strong>Date &amp; Time:</strong>{' '}
-                    {new Date(upcoming.session_start).toLocaleString()} –{' '}
-                    {new Date(upcoming.session_end).toLocaleTimeString()}
+                    {formatSessionRange(upcoming.session_start, upcoming.session_end)}
                   </span>
                   <span>
                     <strong>Status:</strong> {upcoming.status}
@@ -259,6 +331,10 @@ export function Dashboard() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [upcoming, setUpcoming] = useState<ScheduleWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [comingSoonMethod, setComingSoonMethod] = useState<string | null>(null);
+
+  const walletBalance = getWalletBalance(profile);
 
   useEffect(() => {
     if (!profile || isAdmin) {
@@ -270,6 +346,7 @@ export function Dashboard() {
 
     async function load() {
       try {
+        await processAllScheduleUpdates(profile!.user_id);
         const all = await getUserSchedules(profile!.user_id);
         setSchedules(all);
 
@@ -285,6 +362,8 @@ export function Dashboard() {
     load();
   }, [profile, role, isAdmin]);
 
+  const ongoingSessions = useMemo(() => filterOngoingSessions(schedules), [schedules]);
+
   const firstName = profile?.name?.split(' ')[0] ?? 'there';
 
   return (
@@ -298,9 +377,33 @@ export function Dashboard() {
           name={firstName}
           upcoming={upcoming}
           recentSchedules={schedules}
+          ongoingSessions={ongoingSessions}
         />
       ) : (
-        <StudentDashboard name={firstName} recentSchedules={schedules} />
+        <StudentDashboard
+          name={firstName}
+          recentSchedules={schedules}
+          ongoingSessions={ongoingSessions}
+          walletBalance={walletBalance}
+          onTopUp={() => setShowTopUp(true)}
+        />
+      )}
+
+      {showTopUp && (
+        <TopUpModal
+          onClose={() => setShowTopUp(false)}
+          onSelectMethod={(method) => {
+            setShowTopUp(false);
+            setComingSoonMethod(method);
+          }}
+        />
+      )}
+
+      {comingSoonMethod && (
+        <ComingSoonModal
+          feature={comingSoonMethod}
+          onClose={() => setComingSoonMethod(null)}
+        />
       )}
     </AppLayout>
   );

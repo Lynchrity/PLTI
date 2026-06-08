@@ -1,25 +1,38 @@
-import type { SearchFilters, ServiceWithTutor } from '../types';
+import type { SearchFilters, Service, ServiceWithTutor } from '../types';
+import { formatPriceIdr, isPeerService } from '../utils/currency';
+import {
+  isMissingColumnError,
+  SERVICE_BASE_COLUMNS,
+  SERVICE_EXTENDED_COLUMNS,
+} from '../utils/supabaseSchema';
 import { supabase } from './supabase';
 
-function isPeerService(type: string, price: number | null): boolean {
-  return type.toLowerCase() === 'peer' || price === 0;
+async function resolveServiceColumns(): Promise<string> {
+  const probe = await supabase.from('services').select(SERVICE_EXTENDED_COLUMNS).limit(1);
+  if (probe.error && isMissingColumnError(probe.error)) {
+    return SERVICE_BASE_COLUMNS;
+  }
+  if (probe.error) {
+    throw probe.error;
+  }
+  return SERVICE_EXTENDED_COLUMNS;
 }
 
 export async function searchServices(filters: SearchFilters): Promise<ServiceWithTutor[]> {
-  let query = supabase
-    .from('services')
-    .select(
-      'service_id, creator_id, type, title, duration_minutes, price, subject, topic, created_at',
-    );
+  const columns = await resolveServiceColumns();
+  let query = supabase.from('services').select(columns);
 
   if (filters.subject && filters.subject !== 'All subjects') {
     query = query.ilike('subject', `%${filters.subject}%`);
   }
 
   if (filters.type === 'peer') {
-    query = query.or('type.ilike.peer,price.eq.0');
+    query = query.or('type.ilike.peer,type.ilike.study_buddy,price.eq.0');
   } else if (filters.type === 'tutoring') {
-    query = query.not('type', 'ilike', 'peer').neq('price', 0);
+    query = query
+      .not('type', 'ilike', 'peer')
+      .not('type', 'ilike', 'study_buddy')
+      .gt('price', 0);
   }
 
   if (filters.duration) {
@@ -45,10 +58,12 @@ export async function searchServices(filters: SearchFilters): Promise<ServiceWit
     throw error;
   }
 
-  const serviceIds = (services ?? []).map((s) => s.service_id);
+  const rows = (services ?? []) as unknown as Service[];
+
+  const serviceIds = rows.map((s) => s.service_id);
   const ratingsMap = await fetchAverageRatings(serviceIds);
 
-  const creatorIds = [...new Set((services ?? []).map((s) => s.creator_id))];
+  const creatorIds = [...new Set(rows.map((s) => s.creator_id))];
   const nameMap = new Map<string, string>();
 
   if (creatorIds.length > 0) {
@@ -62,7 +77,7 @@ export async function searchServices(filters: SearchFilters): Promise<ServiceWit
     }
   }
 
-  let results: ServiceWithTutor[] = (services ?? []).map((row) => {
+  let results: ServiceWithTutor[] = rows.map((row) => {
     const rating = ratingsMap.get(row.service_id) ?? { avg: 0, count: 0 };
 
     return {
@@ -74,8 +89,11 @@ export async function searchServices(filters: SearchFilters): Promise<ServiceWit
       price: row.price,
       subject: row.subject,
       topic: row.topic,
+      description: row.description ?? null,
+      banner_url: row.banner_url ?? null,
+      grade_level: row.grade_level ?? null,
       created_at: row.created_at,
-      tutor_name: nameMap.get(row.creator_id) ?? 'Tutor',
+      tutor_name: nameMap.get(row.creator_id) ?? (isPeerService(row.type, row.price) ? 'Peer' : 'Tutor'),
       avg_rating: rating.avg,
       review_count: rating.count,
     };
@@ -88,6 +106,7 @@ export async function searchServices(filters: SearchFilters): Promise<ServiceWit
         s.title.toLowerCase().includes(q) ||
         (s.subject?.toLowerCase().includes(q) ?? false) ||
         (s.topic?.toLowerCase().includes(q) ?? false) ||
+        (s.description?.toLowerCase().includes(q) ?? false) ||
         s.tutor_name.toLowerCase().includes(q),
     );
   }
@@ -96,6 +115,7 @@ export async function searchServices(filters: SearchFilters): Promise<ServiceWit
     const grade = filters.gradeLevel.toLowerCase();
     results = results.filter(
       (s) =>
+        s.grade_level?.toLowerCase() === grade ||
         s.topic?.toLowerCase().includes(grade) ||
         s.title.toLowerCase().includes(grade) ||
         s.subject?.toLowerCase().includes(grade),
@@ -155,8 +175,5 @@ async function fetchAverageRatings(
 }
 
 export function formatServicePrice(type: string, price: number | null): string {
-  if (isPeerService(type, price)) {
-    return 'Free';
-  }
-  return `From $${Number(price ?? 0).toFixed(0)}`;
+  return formatPriceIdr(type, price);
 }
