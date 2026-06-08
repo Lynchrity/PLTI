@@ -1,0 +1,22 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.dateFilter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dateLabel {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.dateFilter input {
+  min-width: 180px;
+}

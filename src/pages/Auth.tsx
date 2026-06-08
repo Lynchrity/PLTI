@@ -1,5 +1,10 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { AppLogo } from '../components/AppLogo/AppLogo';
+import type { UserRole } from '../types';
 import { supabase } from '../services/supabase';
+import { login, signUp, signUpTutor, INVALID_LOGIN_CREDENTIALS } from '../services/authService';
+import { resolvePostLoginPath } from '../services/adminService';
 import styles from './Auth.module.css';
 
 
@@ -16,6 +21,39 @@ export function Auth() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState('');
+  const [authRole, setAuthRole] = useState<UserRole>('student');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [experienceSummary, setExperienceSummary] = useState('');
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+
+  const formatLoginError = (message: string) => {
+    if (message === INVALID_LOGIN_CREDENTIALS) {
+      return INVALID_LOGIN_CREDENTIALS;
+    }
+    if (/invalid login credentials|invalid email or password/i.test(message)) {
+      return INVALID_LOGIN_CREDENTIALS;
+    }
+    return formatAuthError(message);
+  };
+
+  const formatSignupError = (message: string) => {
+    if (message === INVALID_LOGIN_CREDENTIALS) {
+      return INVALID_LOGIN_CREDENTIALS;
+    }
+    return formatAuthError(message);
+  };
+
+  const formatAuthError = (message: string) => {
+    if (message.toLowerCase().includes('email not confirmed')) {
+      return 'This account exists, but the email is not confirmed yet. Confirm it in Supabase Authentication > Users, or turn off email confirmation for this school demo.';
+    }
+
+    if (message.toLowerCase().includes('row-level security')) {
+      return 'Supabase blocked this database write with Row Level Security. Add the users table policies from the setup SQL, then try again.';
+    }
+
+    return message;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,18 +61,10 @@ export function Auth() {
     setLoading(true);
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        setError(signInError.message);
-      } else {
-        window.location.href = '/dashboard';
-      }
+      const data = await login(email, password, authRole);
+      window.location.href = await resolvePostLoginPath(data.user, authRole);
     } catch (err) {
-      setError('An error occurred during login');
+      setError(formatLoginError(err instanceof Error ? err.message : 'An error occurred during login'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -53,36 +83,43 @@ export function Auth() {
     return;
   }
 
-  try {
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (signUpError) {
-      setError(signUpError.message);
+  if (authRole === 'tutor') {
+    if (!resumeFile) {
+      setError('Please upload your CV.');
+      setLoading(false);
       return;
     }
+    if (!linkedinUrl.trim() || !experienceSummary.trim()) {
+      setError('LinkedIn URL and experience summary are required for tutor registration.');
+      setLoading(false);
+      return;
+    }
+  }
 
-    if (data.user) {
-      const { error: dbError } = await supabase
-        .from('users')
-        .insert({
-          user_id: data.user.id,
-          name,
-          email: data.user.email,
-          wallet_balance: 0,
-        });
+  try {
+    const data =
+      authRole === 'tutor'
+        ? await signUpTutor({
+            email,
+            password,
+            name,
+            linkedinUrl: linkedinUrl.trim(),
+            experienceSummary: experienceSummary.trim(),
+            resumeFile: resumeFile!,
+          })
+        : await signUp(email, password, name);
 
-      if (dbError) {
-        setError(dbError.message);
-        return;
-      }
-
-      window.location.href = '/dashboard';
+    if (data.session) {
+      window.location.href = await resolvePostLoginPath(data.user, authRole);
+    } else if (authRole === 'tutor') {
+      setError(
+        'Tutor application submitted. Confirm your email in Supabase, then log in as Tutor to check your application status.',
+      );
+    } else {
+      setError('Account created. Confirm the email in Supabase Authentication > Users, then log in.');
     }
   } catch (err) {
-    setError('An error occurred during signup');
+    setError(formatSignupError(err instanceof Error ? err.message : 'An error occurred during signup'));
     console.error(err);
   } finally {
     setLoading(false);
@@ -117,13 +154,19 @@ export function Auth() {
     setShowPassword(false);
     setShowConfirmPassword(false);
     setRememberMe(false);
+    setLinkedinUrl('');
+    setExperienceSummary('');
+    setResumeFile(null);
+    setAuthRole('student');
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} data-auth-role={authRole}>
       {/* Navigation Header */}
       <nav className={styles.navbar}>
-        <div></div>
+        <Link to="/login" className={styles.authLogo}>
+          <AppLogo size={40} showWordmark />
+        </Link>
         <div className={styles.navRight}>
           <button onClick={() => setIsSignup(true)} className={styles.signUpBtn}>Sign Up</button>
           <button onClick={() => setIsSignup(false)} className={styles.loginBtn}>Login</button>
@@ -191,6 +234,35 @@ export function Auth() {
                   {error}
                 </div>
               )}
+
+              <div className={styles.formGroup}>
+                <label className={styles.label}>I am a</label>
+                <div className={styles.roleToggle}>
+                  <button
+                    type="button"
+                    className={
+                      authRole === 'student'
+                        ? `${styles.roleBtn} ${styles.roleActive}`
+                        : styles.roleBtn
+                    }
+                    onClick={() => setAuthRole('student')}
+                  >
+                    Student
+                  </button>
+                  <button
+                    type="button"
+                    className={
+                      authRole === 'tutor'
+                        ? `${styles.roleBtn} ${styles.roleActive}`
+                        : styles.roleBtn
+                    }
+                    onClick={() => setAuthRole('tutor')}
+                  >
+                    Tutor
+                  </button>
+                </div>
+              </div>
+
               {isSignup && (
                 <div className={styles.formGroup}>
                   <label className={styles.label}>Name</label>
@@ -247,6 +319,42 @@ export function Auth() {
                   </button>
                 </div>
               </div>
+
+              {isSignup && authRole === 'tutor' && (
+                <>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>CV / Resume</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      className={styles.input}
+                      onChange={(e) => setResumeFile(e.target.files?.[0] ?? null)}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>LinkedIn URL</label>
+                    <input
+                      type="url"
+                      value={linkedinUrl}
+                      onChange={(e) => setLinkedinUrl(e.target.value)}
+                      placeholder="https://linkedin.com/in/..."
+                      className={styles.input}
+                      required
+                    />
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.label}>Experience Summary</label>
+                    <textarea
+                      value={experienceSummary}
+                      onChange={(e) => setExperienceSummary(e.target.value)}
+                      placeholder="Describe your tutoring experience..."
+                      className={styles.textarea}
+                      required
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Confirm Password Field - Only show for signup */}
               {isSignup && (

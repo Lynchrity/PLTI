@@ -1,235 +1,410 @@
-import { DashboardNav } from '../components/dashboard/DashboardNav';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { TutorApplicationCard } from '../components/admin/TutorApplicationCard';
+import { AppLayout } from '../components/AppLayout/AppLayout';
+import { ComingSoonModal } from '../components/Modal/ComingSoonModal';
+import { TopUpModal } from '../components/Modal/TopUpModal';
+import { useApp } from '../context/AppContext';
+import { filterOngoingSessions } from '../services/attendanceService';
+import { getUpcomingSchedule, getUserSchedules, processAllScheduleUpdates } from '../services/scheduleService';
+import { getWalletBalance } from '../services/walletService';
+import {
+  listTutorApplications,
+  reviewTutorApplication,
+  type TutorApplicationWithUser,
+} from '../services/tutorApplicationService';
+import type { Schedule, ScheduleWithDetails } from '../types';
+import { formatWalletBalance } from '../utils/currency';
+import { formatSessionRange, parseAppTimestamp } from '../utils/timezone';
+import shared from '../styles/shared.module.css';
 import styles from './Dashboard.module.css';
 
-/** Placeholder session data — replace with Supabase / API later */
-const PLACEHOLDER_SESSION = {
-  studentName: 'Frederick Samuel',
-  tutorName: 'Kenny Jingga',
-  topic: 'Vector (Calculus)',
-  duration: '30 Minutes',
-  dateTime: 'Monday, 17th April 13.00 - 13.30',
-  status: 'Confirmed',
-} as const;
+function formatRelativeDate(dateStr: string): string {
+  const date = parseAppTimestamp(dateStr);
+  if (!date) return '—';
+  const diff = Date.now() - date.getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (days === 0) return 'Today';
+  if (days === 1) return '1 day ago';
+  return `${days} days ago`;
+}
 
-const PLACEHOLDER_HISTORY = [
-  'Session with Prof. Kenny Jingga (Software Engineering) - 2 days ago',
-  'Peer Review (English) - 2 days ago',
-] as const;
+function OngoingSessionsPanel({ sessions }: { sessions: Schedule[] }) {
+  if (sessions.length === 0) {
+    return (
+      <div className={`${styles.widget} ${styles.widgetFull}`}>
+        <div className={styles.widgetHeader}>Ongoing Sessions</div>
+        <div className={styles.widgetBody}>
+          <p className={shared.empty}>No sessions in progress right now.</p>
+        </div>
+      </div>
+    );
+  }
 
-type StudentDashboardProps = {
-  userName?: string;
-  hasActiveSession?: boolean;
-};
+  return (
+    <div className={`${styles.widget} ${styles.widgetFull}`}>
+      <div className={styles.widgetHeader}>Ongoing Sessions</div>
+      <div className={styles.widgetBody}>
+        <ul className={styles.historyList}>
+          {sessions.map((s) => (
+            <li key={s.schedule_id} className={styles.historyItem} style={{ alignItems: 'center' }}>
+              <span>●</span>
+              <span style={{ flex: 1 }}>
+                Session started — confirm attendance within 15 minutes
+              </span>
+              <Link to={`/sessions/${s.schedule_id}`} className={shared.btnPrimary}>
+                Check attendance
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 function StudentDashboard({
-  userName = 'Person',
-  hasActiveSession = false,
-}: StudentDashboardProps) {
+  name,
+  recentSchedules,
+  ongoingSessions,
+  walletBalance,
+  onTopUp,
+}: {
+  name: string;
+  recentSchedules: Schedule[];
+  ongoingSessions: Schedule[];
+  walletBalance: number;
+  onTopUp: () => void;
+}) {
   return (
-    <div className={styles.page}>
-      <DashboardNav role="student" activePath="/dashboard" />
+    <div className={styles.dashboard}>
+      <section className={styles.hero}>
+        <h1>Hi, {name}! Ready to solve your unanswered questions?</h1>
+        <p>Find a peer or tutor for your specific topic in seconds.</p>
+        <div className={styles.actions}>
+          <Link to="/search?type=tutoring" className={shared.btnPrimary}>
+            Request a Tutor now
+          </Link>
+          <Link to="/search?type=peer" className={shared.btnOutline}>
+            Request a Peer now ↗
+          </Link>
+        </div>
+      </section>
 
-      <main className={styles.main}>
-        <section className={styles.hero}>
-          <h1 className={styles.heroTitle}>
-            Hi, {userName}! Ready to solve your unanswered questions?
-          </h1>
-          <p className={styles.heroSubtitle}>
-            Find a peer or tutor for your specific topic in seconds.
-          </p>
-          <div className={styles.heroActions}>
-            <button type="button" className={styles.btnPrimaryStudent}>
-              Request a Tutor now
-            </button>
-            <button type="button" className={styles.btnOutlineStudent}>
-              Request a Peer now
-              <svg className={styles.externalIcon} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-              </svg>
+      <section className={styles.widgets}>
+        <OngoingSessionsPanel sessions={ongoingSessions} />
+
+        <div className={styles.widget}>
+          <div className={styles.widgetHeader}>💳 Wallet</div>
+          <div className={styles.widgetBody}>
+            <p className={styles.walletBalance}>{formatWalletBalance(walletBalance)}</p>
+            <button type="button" className={shared.btnPrimary} onClick={onTopUp}>
+              Top up
             </button>
           </div>
-        </section>
+        </div>
 
-        <section className={styles.cardsColumn}>
-          <article className={styles.sessionCard}>
-            <header className={styles.sessionCardHeader}>
-              <svg className={styles.sessionCardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                <circle cx="12" cy="12" r="10" strokeWidth={2} />
-                <circle cx="12" cy="12" r="3" strokeWidth={2} />
-              </svg>
-              <h2 className={styles.sessionCardTitle}>Session Status</h2>
-            </header>
-
-            {hasActiveSession ? (
-              <div className={styles.sessionCardBody}>
-                <dl className={styles.detailList}>
-                  <div className={styles.detailRow}>
-                    <dt>Tutor</dt>
-                    <dd>{PLACEHOLDER_SESSION.tutorName}</dd>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <dt>Topic</dt>
-                    <dd>{PLACEHOLDER_SESSION.topic}</dd>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <dt>Duration</dt>
-                    <dd>{PLACEHOLDER_SESSION.duration}</dd>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <dt>Date &amp; Time</dt>
-                    <dd>{PLACEHOLDER_SESSION.dateTime}</dd>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <dt>Status</dt>
-                    <dd>{PLACEHOLDER_SESSION.status}</dd>
-                  </div>
-                </dl>
-                <button type="button" className={styles.btnPrimaryStudent}>
-                  Chat Tutor
-                </button>
-              </div>
+        <div className={styles.widget}>
+          <div className={styles.widgetHeader}>📅 Upcoming Sessions</div>
+          <div className={styles.widgetBody}>
+            {recentSchedules.filter((s) => ['scheduled', 'confirmed'].includes(s.status)).length === 0 ? (
+              <p className={shared.empty}>No upcoming sessions.</p>
             ) : (
-              <div className={styles.sessionCardEmpty}>
-                <p className={styles.emptyStatus}>
-                  Current Status: <strong>No Active Sessions</strong>
-                </p>
-                <div className={styles.emptyIllustration} aria-hidden>
-                  <svg viewBox="0 0 120 80" className={styles.deskSvg}>
-                    <rect x="10" y="50" width="100" height="4" fill="#cbd5e1" />
-                    <rect x="30" y="30" width="40" height="25" fill="none" stroke="#94a3b8" strokeWidth="2" />
-                    <circle cx="85" cy="25" r="8" fill="none" stroke="#94a3b8" strokeWidth="2" />
-                    <line x1="85" y1="33" x2="85" y2="50" stroke="#94a3b8" strokeWidth="2" />
-                  </svg>
-                </div>
-                <p className={styles.emptyCaption}>Your desk is ready when you are.</p>
-              </div>
-            )}
-          </article>
-
-          <div className={styles.bottomCards}>
-            <article className={styles.smallCard}>
-              <svg className={styles.smallCardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                <circle cx="11" cy="11" r="8" strokeWidth={2} />
-                <path d="M21 21l-4.35-4.35" strokeWidth={2} strokeLinecap="round" />
-              </svg>
-              <h3 className={styles.smallCardTitle}>Active Matches</h3>
-              <p className={styles.smallCardText}>
-                Scanning for available tutors for your [Subject]... ✨
-              </p>
-            </article>
-
-            <article className={styles.smallCard}>
-              <svg className={styles.smallCardIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
-                <path strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-                <rect x="9" y="3" width="6" height="4" rx="1" strokeWidth={2} />
-              </svg>
-              <h3 className={styles.smallCardTitle}>Recent Session History</h3>
               <ul className={styles.historyList}>
-                {PLACEHOLDER_HISTORY.map((item) => (
-                  <li key={item} className={styles.historyItem}>
-                    <span className={styles.historyAvatar} aria-hidden />
-                    <span>{item}</span>
-                    <span className={styles.historyCheck} aria-hidden>✓</span>
+                {recentSchedules
+                  .filter((s) => ['scheduled', 'confirmed'].includes(s.status))
+                  .slice(0, 2)
+                  .map((s) => (
+                    <li key={s.schedule_id} className={styles.historyItem}>
+                      <span>•</span>
+                      <span>
+                        {s.status} — {formatRelativeDate(s.session_start)}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            )}
+            <Link to="/history" className={shared.btnOutline} style={{ marginTop: 12 }}>
+              View history
+            </Link>
+          </div>
+        </div>
+
+        <div className={styles.widget}>
+          <div className={styles.widgetHeader}>📝 Recent Session History</div>
+          <div className={styles.widgetBody}>
+            {recentSchedules.length === 0 ? (
+              <p className={shared.empty}>No sessions yet.</p>
+            ) : (
+              <ul className={styles.historyList}>
+                {recentSchedules.slice(0, 3).map((s) => (
+                  <li key={s.schedule_id} className={styles.historyItem}>
+                    <span>✓</span>
+                    <span>
+                      Session ({s.status}) — {formatRelativeDate(s.session_start)}
+                    </span>
                   </li>
                 ))}
               </ul>
-              <button type="button" className={styles.viewAllBtn}>
-                View all
-              </button>
-            </article>
+            )}
+            <Link to="/history" className={styles.viewAll}>
+              View all
+            </Link>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
     </div>
   );
 }
 
-type TutorDashboardProps = {
-  userName?: string;
-};
-
-function TutorDashboard({ userName = 'Tutor' }: TutorDashboardProps) {
+function TutorDashboard({
+  name,
+  upcoming,
+  recentSchedules,
+  ongoingSessions,
+}: {
+  name: string;
+  upcoming: ScheduleWithDetails | null;
+  recentSchedules: Schedule[];
+  ongoingSessions: Schedule[];
+}) {
   return (
-    <div className={styles.page}>
-      <DashboardNav role="tutor" activePath="/dashboard/tutor" />
+    <div className={styles.dashboard}>
+      <section className={styles.hero}>
+        <h1>Hi, {name}! Ready to solve your students&apos; worries?</h1>
+        <p>Manage your services, sessions, and availability from one place.</p>
+        <div className={styles.actions}>
+          <Link to="/services" className={shared.btnPrimary}>
+            Manage Services
+          </Link>
+          <Link to="/requests" className={shared.btnOutline}>
+            View Requests
+          </Link>
+        </div>
+      </section>
 
-      <main className={styles.main}>
-        <section className={styles.hero}>
-          <h1 className={styles.heroTitle}>
-            Hi, {userName}! Ready to solve your students&apos; worries?
-          </h1>
-          <p className={styles.heroSubtitle}>
-            Find a peer or tutor for your specific topic in seconds.
-          </p>
-          <button type="button" className={styles.btnPrimaryTutor}>
-            Request a Tutor now
-          </button>
-        </section>
+      <section className={styles.widgets}>
+        <OngoingSessionsPanel sessions={ongoingSessions} />
 
-        <section className={styles.cardsColumn}>
-          <article className={styles.plainCard}>
-            <h2 className={styles.plainCardTitle}>Your Next Session</h2>
-            <dl className={styles.detailList}>
-              <div className={styles.detailRow}>
-                <dt>Student</dt>
-                <dd>{PLACEHOLDER_SESSION.studentName}</dd>
-              </div>
-              <div className={styles.detailRow}>
-                <dt>Topic</dt>
-                <dd>{PLACEHOLDER_SESSION.topic}</dd>
-              </div>
-              <div className={styles.detailRow}>
-                <dt>Duration</dt>
-                <dd>{PLACEHOLDER_SESSION.duration}</dd>
-              </div>
-              <div className={styles.detailRow}>
-                <dt>Date &amp; Time</dt>
-                <dd>{PLACEHOLDER_SESSION.dateTime}</dd>
-              </div>
-              <div className={styles.detailRow}>
-                <dt>Status</dt>
-                <dd>{PLACEHOLDER_SESSION.status}</dd>
-              </div>
-            </dl>
-            <button type="button" className={styles.btnPrimaryTutor}>
-              Join Meeting
-            </button>
-          </article>
-
-          <div className={styles.bottomCards}>
-            <article className={styles.plainCard}>
-              <h3 className={styles.plainCardTitle}>Availability Status</h3>
-              <p className={styles.availableStatus}>
-                <span className={styles.availableDot} aria-hidden />
-                Available
-              </p>
-            </article>
-
-            <article className={styles.plainCard}>
-              <h3 className={styles.plainCardTitle}>Recent Session History</h3>
-              <div className={styles.historyPlaceholder} aria-hidden>
-                <svg viewBox="0 0 48 48" className={styles.noteIcon}>
-                  <rect x="8" y="6" width="28" height="36" rx="2" fill="none" stroke="currentColor" strokeWidth="2" />
-                  <path d="M36 14l8 8v24a2 2 0 01-2 2h-6" fill="none" stroke="currentColor" strokeWidth="2" />
-                </svg>
-              </div>
-            </article>
+        <div className={`${styles.widget} ${styles.widgetFull}`}>
+          <div className={styles.widgetHeader}>Your Next Session</div>
+          <div className={styles.widgetBody}>
+            {upcoming ? (
+              <>
+                <div className={styles.sessionDetail}>
+                  <span>
+                    <strong>Student:</strong> {upcoming.other_party_name}
+                  </span>
+                  <span>
+                    <strong>Topic:</strong> {upcoming.topic ?? upcoming.subject} (
+                    {upcoming.subject})
+                  </span>
+                  <span>
+                    <strong>Duration:</strong> {upcoming.duration_minutes ?? 30} Minutes
+                  </span>
+                  <span>
+                    <strong>Date &amp; Time:</strong>{' '}
+                    {formatSessionRange(upcoming.session_start, upcoming.session_end)}
+                  </span>
+                  <span>
+                    <strong>Status:</strong> {upcoming.status}
+                  </span>
+                </div>
+                <Link
+                  to={`/sessions/${upcoming.schedule_id}`}
+                  className={shared.btnPrimary}
+                >
+                  View Session Details
+                </Link>
+              </>
+            ) : (
+              <p className={shared.empty}>No upcoming sessions scheduled.</p>
+            )}
           </div>
-        </section>
-      </main>
+        </div>
+
+        <div className={styles.widget}>
+          <div className={styles.widgetHeader}>Availability Status</div>
+          <div className={styles.widgetBody}>
+            <p className={styles.available}>✓ Available</p>
+          </div>
+        </div>
+
+        <div className={styles.widget}>
+          <div className={styles.widgetHeader}>📝 Recent Session History</div>
+          <div className={styles.widgetBody}>
+            {recentSchedules.length === 0 ? (
+              <p className={shared.empty}>No sessions yet.</p>
+            ) : (
+              <ul className={styles.historyList}>
+                {recentSchedules.slice(0, 3).map((s) => (
+                  <li key={s.schedule_id} className={styles.historyItem}>
+                    <span>✓</span>
+                    <span>
+                      {s.status} — {formatRelativeDate(s.session_start)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link to="/history" className={styles.viewAll}>
+              View all
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
 
-/** Student dashboard — toggle `hasActiveSession` to preview both mockup states */
-export function StudentDashboardPage() {
-  const hasActiveSession =
-    new URLSearchParams(window.location.search).get('session') === 'active';
+function AdminDashboard() {
+  const [applications, setApplications] = useState<TutorApplicationWithUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
-  return <StudentDashboard hasActiveSession={hasActiveSession} />;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await listTutorApplications({ status: 'pending', sortAscending: false });
+      setApplications(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load applications.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleReview = async (
+    applicationId: string,
+    status: 'approved' | 'rejected',
+  ) => {
+    setMessage('');
+    setError('');
+    try {
+      await reviewTutorApplication(applicationId, status);
+      setMessage(`Application ${status}.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update application.');
+    }
+  };
+
+  return (
+    <>
+      <h1 className={shared.pageTitle}>Tutor Applications</h1>
+      <p className={shared.pageSubtitle}>
+        Review pending tutor signups. View past decisions on History.
+      </p>
+
+      {error && <div className={shared.error}>{error}</div>}
+      {message && <p style={{ color: '#16a34a', marginBottom: 16 }}>{message}</p>}
+
+      {loading ? (
+        <p>Loading applications…</p>
+      ) : applications.length === 0 ? (
+        <p className={shared.empty}>No pending applications.</p>
+      ) : (
+        <ul className={styles.applicationList}>
+          {applications.map((app) => (
+            <TutorApplicationCard
+              key={app.application_id}
+              app={app}
+              showActions
+              onApprove={(id) => handleReview(id, 'approved')}
+              onReject={(id) => handleReview(id, 'rejected')}
+            />
+          ))}
+        </ul>
+      )}
+    </>
+  );
 }
 
-export function TutorDashboardPage() {
-  return <TutorDashboard />;
+export function Dashboard() {
+  const { profile, role, isAdmin } = useApp();
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [upcoming, setUpcoming] = useState<ScheduleWithDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [comingSoonMethod, setComingSoonMethod] = useState<string | null>(null);
+
+  const walletBalance = getWalletBalance(profile);
+
+  useEffect(() => {
+    if (!profile || isAdmin) {
+      if (isAdmin) {
+        setLoading(false);
+      }
+      return;
+    }
+
+    async function load() {
+      try {
+        await processAllScheduleUpdates(profile!.user_id);
+        const all = await getUserSchedules(profile!.user_id);
+        setSchedules(all);
+
+        if (role === 'tutor') {
+          const next = await getUpcomingSchedule(profile!.user_id, 'tutor');
+          setUpcoming(next);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, [profile, role, isAdmin]);
+
+  const ongoingSessions = useMemo(() => filterOngoingSessions(schedules), [schedules]);
+
+  const firstName = profile?.name?.split(' ')[0] ?? 'there';
+
+  return (
+    <AppLayout>
+      {isAdmin ? (
+        <AdminDashboard />
+      ) : loading ? (
+        <p>Loading dashboard…</p>
+      ) : role === 'tutor' ? (
+        <TutorDashboard
+          name={firstName}
+          upcoming={upcoming}
+          recentSchedules={schedules}
+          ongoingSessions={ongoingSessions}
+        />
+      ) : (
+        <StudentDashboard
+          name={firstName}
+          recentSchedules={schedules}
+          ongoingSessions={ongoingSessions}
+          walletBalance={walletBalance}
+          onTopUp={() => setShowTopUp(true)}
+        />
+      )}
+
+      {showTopUp && (
+        <TopUpModal
+          onClose={() => setShowTopUp(false)}
+          onSelectMethod={(method) => {
+            setShowTopUp(false);
+            setComingSoonMethod(method);
+          }}
+        />
+      )}
+
+      {comingSoonMethod && (
+        <ComingSoonModal
+          feature={comingSoonMethod}
+          onClose={() => setComingSoonMethod(null)}
+        />
+      )}
+    </AppLayout>
+  );
 }

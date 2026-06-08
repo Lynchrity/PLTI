@@ -13,19 +13,6 @@
   text-decoration: none;
 }
 
-.logoMark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  background-color: #f97316;
-  color: #fff;
-  font-weight: 700;
-  font-size: 18px;
-  border-radius: 6px;
-}
-
 .navLinks {
   display: flex;
   align-items: center;

@@ -1,0 +1,21 @@
+.layout {
+  min-height: 100vh;
+  background: var(--color-bg-muted);
+  color: var(--color-text);
+}
+
+.main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+.mainFullBleed {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 72px);
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
