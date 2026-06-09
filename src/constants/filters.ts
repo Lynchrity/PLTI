@@ -18,7 +18,6 @@ export const GRADE_LEVEL_OPTIONS = [
   'Middle School',
   'High School',
   'Undergraduate',
-  'Graduate',
   'Higher than Undergraduate',
 ];
 
