@@ -130,7 +130,7 @@ function ManageServices({
       <p className={shared.pageSubtitle}>
         {isPeer
           ? 'Offer free peer study sessions. Other students can find and book you from Search.'
-          : 'Create paid tutoring offerings. Enter your rate in rupiah before the 15% platform fee (students see base + fee on Search).'}
+          : 'Create paid tutoring offerings. Enter the price in rupiah (e.g. Rp45.000,00 on listings).'}
       </p>
 
       {error && <div className={shared.error}>{error}</div>}

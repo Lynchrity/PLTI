@@ -1,6 +1,6 @@
 /** Amounts stored as full rupiah integers; displayed in Indonesian format (Rp150.000,00). */
 
-export const ADMIN_FEE_RATE = 0.15;
+export const ADMIN_FEE_RATE = 0.1;
 
 const idrFormatter = new Intl.NumberFormat('id-ID', {
   style: 'currency',
